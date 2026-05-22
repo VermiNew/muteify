@@ -4,6 +4,8 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import com.muteify.app.data.repository.ScheduleSettings
+import com.muteify.app.data.repository.ScheduleSlotSettings
 import java.time.ZonedDateTime
 
 class ScheduleAlarmScheduler(context: Context) {
@@ -11,12 +13,20 @@ class ScheduleAlarmScheduler(context: Context) {
     private val appContext = context.applicationContext
     private val alarmManager = appContext.getSystemService(AlarmManager::class.java)
 
-    fun scheduleDaily(morningTime: String, nightTime: String) {
-        schedule(ScheduleSlot.MORNING, morningTime)
-        schedule(ScheduleSlot.EVENING, nightTime)
+    fun scheduleDaily(settings: ScheduleSettings) {
+        scheduleSlot(ScheduleSlot.MORNING, settings.morning)
+        scheduleSlot(ScheduleSlot.EVENING, settings.evening)
     }
 
-    fun schedule(slot: ScheduleSlot, timeValue: String) {
+    private fun scheduleSlot(slot: ScheduleSlot, settings: ScheduleSlotSettings) {
+        if (settings.enabled) {
+            schedule(slot, settings.time)
+        } else {
+            cancel(slot)
+        }
+    }
+
+    private fun schedule(slot: ScheduleSlot, timeValue: String) {
         val scheduleTime = DailyScheduleTime.parse(timeValue) ?: return
         val triggerAtMillis = scheduleTime
             .nextOccurrenceAfter(ZonedDateTime.now())
