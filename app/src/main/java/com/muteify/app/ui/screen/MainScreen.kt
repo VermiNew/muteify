@@ -34,10 +34,18 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
     var hasPostNotificationsPermission by remember {
         mutableStateOf(isPostNotificationsPermissionGranted(context))
     }
+    var hasWifiLocationPermission by remember {
+        mutableStateOf(isWifiLocationPermissionGranted(context))
+    }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         hasPostNotificationsPermission = isGranted
+    }
+    val wifiLocationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        hasWifiLocationPermission = isGranted
     }
 
     DisposableEffect(lifecycleOwner, viewModel) {
@@ -45,6 +53,7 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
             if (event == Lifecycle.Event.ON_RESUME) {
                 viewModel.refreshPermissionStatus()
                 hasPostNotificationsPermission = isPostNotificationsPermissionGranted(context)
+                hasWifiLocationPermission = isWifiLocationPermissionGranted(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -80,11 +89,15 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
             PermissionStatusCard(
                 hasNotificationPolicyAccess = hasNotificationPolicyAccess,
                 hasPostNotificationsPermission = hasPostNotificationsPermission,
+                hasWifiLocationPermission = hasWifiLocationPermission,
                 onOpenSettings = viewModel::openNotificationPolicySettings,
                 onRequestNotificationPermission = {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                         notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                     }
+                },
+                onRequestWifiLocationPermission = {
+                    wifiLocationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
                 }
             )
 
@@ -128,17 +141,25 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
 fun PermissionStatusCard(
     hasNotificationPolicyAccess: Boolean,
     hasPostNotificationsPermission: Boolean,
+    hasWifiLocationPermission: Boolean,
     onOpenSettings: () -> Unit,
-    onRequestNotificationPermission: () -> Unit
+    onRequestNotificationPermission: () -> Unit,
+    onRequestWifiLocationPermission: () -> Unit
 ) {
     val policyStatusText = if (hasNotificationPolicyAccess) "Przyznany" else "Brak"
     val notificationStatusText = if (hasPostNotificationsPermission) "Przyznane" else "Brak"
+    val wifiLocationStatusText = if (hasWifiLocationPermission) "Przyznana" else "Brak"
     val policyStatusColor = if (hasNotificationPolicyAccess) {
         MaterialTheme.colorScheme.primary
     } else {
         MaterialTheme.colorScheme.error
     }
     val notificationStatusColor = if (hasPostNotificationsPermission) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.error
+    }
+    val wifiLocationStatusColor = if (hasWifiLocationPermission) {
         MaterialTheme.colorScheme.primary
     } else {
         MaterialTheme.colorScheme.error
@@ -167,6 +188,11 @@ fun PermissionStatusCard(
                 style = MaterialTheme.typography.bodyMedium,
                 color = notificationStatusColor
             )
+            Text(
+                text = "Lokalizacja dla Wi-Fi: $wifiLocationStatusText",
+                style = MaterialTheme.typography.bodyMedium,
+                color = wifiLocationStatusColor
+            )
             if (!hasNotificationPolicyAccess) {
                 TextButton(onClick = onOpenSettings) {
                     Text("Otwórz ustawienia")
@@ -175,6 +201,11 @@ fun PermissionStatusCard(
             if (!hasPostNotificationsPermission) {
                 TextButton(onClick = onRequestNotificationPermission) {
                     Text("Zezwól na powiadomienia")
+                }
+            }
+            if (!hasWifiLocationPermission) {
+                TextButton(onClick = onRequestWifiLocationPermission) {
+                    Text("Zezwól na lokalizację")
                 }
             }
         }
@@ -187,6 +218,13 @@ private fun isPostNotificationsPermissionGranted(context: Context): Boolean {
             context,
             Manifest.permission.POST_NOTIFICATIONS
         ) == PackageManager.PERMISSION_GRANTED
+}
+
+private fun isWifiLocationPermissionGranted(context: Context): Boolean {
+    return ContextCompat.checkSelfPermission(
+        context,
+        Manifest.permission.ACCESS_FINE_LOCATION
+    ) == PackageManager.PERMISSION_GRANTED
 }
 
 @Composable
