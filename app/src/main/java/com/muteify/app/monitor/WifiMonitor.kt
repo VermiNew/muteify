@@ -5,7 +5,6 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
-import android.net.wifi.WifiManager
 import com.muteify.app.data.model.TriggerState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,13 +16,14 @@ class WifiMonitor(private val context: Context) {
 
     private val connectivityManager =
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    private val wifiPresenceChecker = WifiPresenceChecker(context)
 
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onCapabilitiesChanged(
             network: Network,
             capabilities: NetworkCapabilities
         ) {
-            val ssid = getCurrentSsid()
+            val ssid = wifiPresenceChecker.currentSsid()
             updateState(ssid)
         }
 
@@ -39,7 +39,7 @@ class WifiMonitor(private val context: Context) {
             .build()
         connectivityManager.registerNetworkCallback(request, networkCallback)
         // Check current state immediately
-        updateState(getCurrentSsid())
+        updateState(wifiPresenceChecker.currentSsid())
     }
 
     fun stop() {
@@ -51,12 +51,6 @@ class WifiMonitor(private val context: Context) {
     }
 
     private var targetSsid: String = ""
-
-    private fun getCurrentSsid(): String? {
-        val wifiManager =
-            context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-        return wifiManager.connectionInfo?.ssid?.removeSurrounding("\"")
-    }
 
     private fun updateState(currentSsid: String?) {
         _state.value = if (currentSsid != null && currentSsid == targetSsid) {
