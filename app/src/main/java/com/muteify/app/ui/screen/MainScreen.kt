@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
@@ -20,6 +21,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.muteify.app.data.model.SchedulePolicy
 import com.muteify.app.data.model.SoundAction
 
 @Composable
@@ -29,6 +31,12 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
     val actionLeave by viewModel.actionLeave.collectAsState()
     val morningTime by viewModel.morningTime.collectAsState()
     val nightTime by viewModel.nightTime.collectAsState()
+    val morningScheduleEnabled by viewModel.morningScheduleEnabled.collectAsState()
+    val morningScheduleAction by viewModel.morningScheduleAction.collectAsState()
+    val morningSchedulePolicy by viewModel.morningSchedulePolicy.collectAsState()
+    val eveningScheduleEnabled by viewModel.eveningScheduleEnabled.collectAsState()
+    val eveningScheduleAction by viewModel.eveningScheduleAction.collectAsState()
+    val eveningSchedulePolicy by viewModel.eveningSchedulePolicy.collectAsState()
     val isRunning by viewModel.isRunning.collectAsState()
     val hasNotificationPolicyAccess by viewModel.hasNotificationPolicyAccess.collectAsState()
     val context = LocalContext.current
@@ -154,6 +162,28 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
                     singleLine = true
                 )
             }
+
+            ScheduleSlotBehaviorControls(
+                title = "Rano",
+                enabled = morningScheduleEnabled,
+                action = morningScheduleAction,
+                policy = morningSchedulePolicy,
+                controlsEnabled = !isRunning,
+                onEnabledChanged = viewModel::onMorningScheduleEnabledChanged,
+                onActionChanged = viewModel::onMorningScheduleActionChanged,
+                onPolicyChanged = viewModel::onMorningSchedulePolicyChanged
+            )
+
+            ScheduleSlotBehaviorControls(
+                title = "Wieczorem",
+                enabled = eveningScheduleEnabled,
+                action = eveningScheduleAction,
+                policy = eveningSchedulePolicy,
+                controlsEnabled = !isRunning,
+                onEnabledChanged = viewModel::onEveningScheduleEnabledChanged,
+                onActionChanged = viewModel::onEveningScheduleActionChanged,
+                onPolicyChanged = viewModel::onEveningSchedulePolicyChanged
+            )
         }
 
         Button(
@@ -163,6 +193,51 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
         ) {
             Text(if (isRunning) "Zatrzymaj" else "Zapisz i włącz")
         }
+    }
+}
+
+@Composable
+fun ScheduleSlotBehaviorControls(
+    title: String,
+    enabled: Boolean,
+    action: SoundAction,
+    policy: SchedulePolicy,
+    controlsEnabled: Boolean,
+    onEnabledChanged: (Boolean) -> Unit,
+    onActionChanged: (SoundAction) -> Unit,
+    onPolicyChanged: (SchedulePolicy) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall
+            )
+            Switch(
+                checked = enabled,
+                onCheckedChange = onEnabledChanged,
+                enabled = controlsEnabled
+            )
+        }
+        SoundActionDropdown(
+            label = "$title: akcja",
+            selected = action,
+            onSelected = onActionChanged,
+            enabled = controlsEnabled && enabled
+        )
+        SchedulePolicyDropdown(
+            label = "$title: zachowanie",
+            selected = policy,
+            onSelected = onPolicyChanged,
+            enabled = controlsEnabled && enabled
+        )
     }
 }
 
@@ -254,6 +329,57 @@ private fun isWifiLocationPermissionGranted(context: Context): Boolean {
         context,
         Manifest.permission.ACCESS_FINE_LOCATION
     ) == PackageManager.PERMISSION_GRANTED
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+fun SchedulePolicyDropdown(
+    label: String,
+    selected: SchedulePolicy,
+    onSelected: (SchedulePolicy) -> Unit,
+    enabled: Boolean
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    val labels = mapOf(
+        SchedulePolicy.AUTO_AFTER_COUNTDOWN to "Po odliczaniu",
+        SchedulePolicy.REQUIRE_CONFIRMATION to "Wymagaj potwierdzenia",
+        SchedulePolicy.NOTIFY_ONLY to "Tylko powiadom"
+    )
+
+    ExposedDropdownMenuBox(
+        expanded = expanded && enabled,
+        onExpandedChange = { if (enabled) expanded = !expanded }
+    ) {
+        OutlinedTextField(
+            value = labels[selected] ?: "",
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded && enabled) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(
+                    type = ExposedDropdownMenuAnchorType.PrimaryNotEditable,
+                    enabled = enabled
+                ),
+            enabled = enabled
+        )
+        ExposedDropdownMenu(
+            expanded = expanded && enabled,
+            onDismissRequest = { expanded = false }
+        ) {
+            SchedulePolicy.entries.forEach { policy ->
+                DropdownMenuItem(
+                    text = { Text(labels[policy] ?: "") },
+                    onClick = {
+                        onSelected(policy)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
 }
 
 @Composable
