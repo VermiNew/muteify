@@ -62,9 +62,9 @@ class MuteifyService : Service() {
             else -> {
                 val ssid = intent?.getStringExtra(EXTRA_SSID) ?: return START_STICKY
                 val enter = intent.getStringExtra(EXTRA_ACTION_ENTER)
-                    ?.let { SoundAction.valueOf(it) } ?: SoundAction.SILENCE
-                val leave = intent.getStringExtra(EXTRA_ACTION_LEAVE)
                     ?.let { SoundAction.valueOf(it) } ?: SoundAction.UNSILENCE
+                val leave = intent.getStringExtra(EXTRA_ACTION_LEAVE)
+                    ?.let { SoundAction.valueOf(it) } ?: SoundAction.SILENCE
                 ruleEngine.start(ssid, enter, leave)
             }
         }

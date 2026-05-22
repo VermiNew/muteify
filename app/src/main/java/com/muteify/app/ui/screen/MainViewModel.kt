@@ -15,10 +15,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _ssid = MutableStateFlow("")
     val ssid: StateFlow<String> = _ssid
 
-    private val _actionEnter = MutableStateFlow(SoundAction.SILENCE)
+    private val _actionEnter = MutableStateFlow(SoundAction.UNSILENCE)
     val actionEnter: StateFlow<SoundAction> = _actionEnter
 
-    private val _actionLeave = MutableStateFlow(SoundAction.UNSILENCE)
+    private val _actionLeave = MutableStateFlow(SoundAction.SILENCE)
     val actionLeave: StateFlow<SoundAction> = _actionLeave
 
     private val _isRunning = MutableStateFlow(false)

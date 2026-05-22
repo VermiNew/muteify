@@ -32,8 +32,8 @@ class RuleEngine(
 
     private var pendingAction: SoundAction? = null
     private var targetSsid: String = ""
-    private var actionEnter: SoundAction = SoundAction.SILENCE
-    private var actionLeave: SoundAction = SoundAction.UNSILENCE
+    private var actionEnter: SoundAction = SoundAction.UNSILENCE
+    private var actionLeave: SoundAction = SoundAction.SILENCE
 
     fun start(ssid: String, enter: SoundAction, leave: SoundAction) {
         targetSsid = ssid
