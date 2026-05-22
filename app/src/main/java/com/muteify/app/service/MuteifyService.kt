@@ -42,7 +42,9 @@ class MuteifyService : Service() {
             showPendingActionNotification(action)
         }
         ruleEngine.onActionPending = { action ->
-            audioController.apply(action)
+            if (action.canRunAutomatically()) {
+                audioController.apply(action)
+            }
             showMonitoringNotification()
         }
         createNotificationChannels()
@@ -128,7 +130,11 @@ class MuteifyService : Service() {
             SoundAction.VIBRATE -> "Wibracje"
             SoundAction.DO_NOTHING -> "Bez zmian"
         }
-        val promptText = "Za 30 sekund: $actionLabel"
+        val promptText = if (action.canRunAutomatically()) {
+            "Za 30 sekund: $actionLabel"
+        } else {
+            "Potwierdź: $actionLabel"
+        }
 
         return NotificationCompat.Builder(this, PROMPT_CHANNEL_ID)
             .setContentTitle("Mute-ify")
@@ -161,5 +167,9 @@ class MuteifyService : Service() {
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+    }
+
+    private fun SoundAction.canRunAutomatically(): Boolean {
+        return this != SoundAction.UNSILENCE && this != SoundAction.DO_NOTHING
     }
 }
