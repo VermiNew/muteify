@@ -1,6 +1,7 @@
 package com.muteify.app.ui.screen
 
 import android.app.Application
+import android.app.NotificationManager
 import android.content.Intent
 import androidx.lifecycle.AndroidViewModel
 import com.muteify.app.data.model.SoundAction
@@ -22,9 +23,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _isRunning = MutableStateFlow(false)
     val isRunning: StateFlow<Boolean> = _isRunning
 
+    private val _hasNotificationPolicyAccess = MutableStateFlow(false)
+    val hasNotificationPolicyAccess: StateFlow<Boolean> = _hasNotificationPolicyAccess
+
+    init {
+        refreshPermissionStatus()
+    }
+
     fun onSsidChanged(value: String) { _ssid.value = value }
     fun onActionEnterChanged(value: SoundAction) { _actionEnter.value = value }
     fun onActionLeaveChanged(value: SoundAction) { _actionLeave.value = value }
+
+    fun refreshPermissionStatus() {
+        val notificationManager =
+            getApplication<Application>().getSystemService(NotificationManager::class.java)
+        _hasNotificationPolicyAccess.value = notificationManager.isNotificationPolicyAccessGranted
+    }
 
     fun toggleService() {
         val context = getApplication<Application>()
