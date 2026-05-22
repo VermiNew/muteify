@@ -1,5 +1,11 @@
 package com.muteify.app.ui.screen
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -7,7 +13,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -21,12 +29,22 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
     val actionLeave by viewModel.actionLeave.collectAsState()
     val isRunning by viewModel.isRunning.collectAsState()
     val hasNotificationPolicyAccess by viewModel.hasNotificationPolicyAccess.collectAsState()
+    val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    var hasPostNotificationsPermission by remember {
+        mutableStateOf(isPostNotificationsPermissionGranted(context))
+    }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        hasPostNotificationsPermission = isGranted
+    }
 
     DisposableEffect(lifecycleOwner, viewModel) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 viewModel.refreshPermissionStatus()
+                hasPostNotificationsPermission = isPostNotificationsPermissionGranted(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -61,7 +79,13 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
 
             PermissionStatusCard(
                 hasNotificationPolicyAccess = hasNotificationPolicyAccess,
-                onOpenSettings = viewModel::openNotificationPolicySettings
+                hasPostNotificationsPermission = hasPostNotificationsPermission,
+                onOpenSettings = viewModel::openNotificationPolicySettings,
+                onRequestNotificationPermission = {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                }
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -103,10 +127,18 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
 @Composable
 fun PermissionStatusCard(
     hasNotificationPolicyAccess: Boolean,
-    onOpenSettings: () -> Unit
+    hasPostNotificationsPermission: Boolean,
+    onOpenSettings: () -> Unit,
+    onRequestNotificationPermission: () -> Unit
 ) {
-    val statusText = if (hasNotificationPolicyAccess) "Przyznany" else "Brak"
-    val statusColor = if (hasNotificationPolicyAccess) {
+    val policyStatusText = if (hasNotificationPolicyAccess) "Przyznany" else "Brak"
+    val notificationStatusText = if (hasPostNotificationsPermission) "Przyznane" else "Brak"
+    val policyStatusColor = if (hasNotificationPolicyAccess) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.error
+    }
+    val notificationStatusColor = if (hasPostNotificationsPermission) {
         MaterialTheme.colorScheme.primary
     } else {
         MaterialTheme.colorScheme.error
@@ -126,17 +158,35 @@ fun PermissionStatusCard(
                 style = MaterialTheme.typography.titleMedium
             )
             Text(
-                text = "Dostęp do trybu Nie przeszkadzać: $statusText",
+                text = "Dostęp do trybu Nie przeszkadzać: $policyStatusText",
                 style = MaterialTheme.typography.bodyMedium,
-                color = statusColor
+                color = policyStatusColor
+            )
+            Text(
+                text = "Powiadomienia: $notificationStatusText",
+                style = MaterialTheme.typography.bodyMedium,
+                color = notificationStatusColor
             )
             if (!hasNotificationPolicyAccess) {
                 TextButton(onClick = onOpenSettings) {
                     Text("Otwórz ustawienia")
                 }
             }
+            if (!hasPostNotificationsPermission) {
+                TextButton(onClick = onRequestNotificationPermission) {
+                    Text("Zezwól na powiadomienia")
+                }
+            }
         }
     }
+}
+
+private fun isPostNotificationsPermissionGranted(context: Context): Boolean {
+    return Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+        ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.POST_NOTIFICATIONS
+        ) == PackageManager.PERMISSION_GRANTED
 }
 
 @Composable
