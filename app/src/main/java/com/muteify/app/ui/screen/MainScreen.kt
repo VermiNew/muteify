@@ -1,7 +1,9 @@
 package com.muteify.app.ui.screen
 
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -23,46 +25,54 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text(
-            text = "Mute-ify",
-            style = MaterialTheme.typography.headlineLarge
-        )
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = "Mute-ify",
+                style = MaterialTheme.typography.headlineLarge
+            )
 
-        Text(
-            text = if (isRunning) "● Monitorowanie aktywne" else "○ Zatrzymane",
-            style = MaterialTheme.typography.bodyMedium,
-            color = if (isRunning) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurfaceVariant
-        )
+            Text(
+                text = if (isRunning) "● Monitorowanie aktywne" else "○ Zatrzymane",
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (isRunning) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+            )
 
-        PermissionStatusCard(hasNotificationPolicyAccess)
+            PermissionStatusCard(
+                hasNotificationPolicyAccess = hasNotificationPolicyAccess,
+                onOpenSettings = viewModel::openNotificationPolicySettings
+            )
 
-        Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-        OutlinedTextField(
-            value = ssid,
-            onValueChange = viewModel::onSsidChanged,
-            label = { Text("Nazwa sieci Wi-Fi (SSID)") },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !isRunning,
-            singleLine = true
-        )
+            OutlinedTextField(
+                value = ssid,
+                onValueChange = viewModel::onSsidChanged,
+                label = { Text("Nazwa sieci Wi-Fi (SSID)") },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isRunning,
+                singleLine = true
+            )
 
-        SoundActionDropdown(
-            label = "Wchodząc do domu",
-            selected = actionEnter,
-            onSelected = viewModel::onActionEnterChanged,
-            enabled = !isRunning
-        )
+            SoundActionDropdown(
+                label = "Wchodząc do domu",
+                selected = actionEnter,
+                onSelected = viewModel::onActionEnterChanged,
+                enabled = !isRunning
+            )
 
-        SoundActionDropdown(
-            label = "Wychodząc z domu",
-            selected = actionLeave,
-            onSelected = viewModel::onActionLeaveChanged,
-            enabled = !isRunning
-        )
-
-        Spacer(modifier = Modifier.weight(1f))
+            SoundActionDropdown(
+                label = "Wychodząc z domu",
+                selected = actionLeave,
+                onSelected = viewModel::onActionLeaveChanged,
+                enabled = !isRunning
+            )
+        }
 
         Button(
             onClick = viewModel::toggleService,
@@ -75,7 +85,10 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
 }
 
 @Composable
-fun PermissionStatusCard(hasNotificationPolicyAccess: Boolean) {
+fun PermissionStatusCard(
+    hasNotificationPolicyAccess: Boolean,
+    onOpenSettings: () -> Unit
+) {
     val statusText = if (hasNotificationPolicyAccess) "Przyznany" else "Brak"
     val statusColor = if (hasNotificationPolicyAccess) {
         MaterialTheme.colorScheme.primary
@@ -101,6 +114,11 @@ fun PermissionStatusCard(hasNotificationPolicyAccess: Boolean) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = statusColor
             )
+            if (!hasNotificationPolicyAccess) {
+                TextButton(onClick = onOpenSettings) {
+                    Text("Otwórz ustawienia")
+                }
+            }
         }
     }
 }
