@@ -180,6 +180,7 @@ Theme selection should be stored persistently.
 - [x] Add a permission/status section in the main UI.
 - [x] Add Notification Policy Access detection before changing audio state.
 - [x] Replace automatic service-side action execution with a real notification prompt.
+- [x] Add runtime Wi-Fi / location permission request.
 - [ ] Remove the persistent always-on foreground notification.
 - [x] Change pending mute countdown from 60 seconds to 30 seconds.
 - [x] Make pending countdown jobs cancellable.
@@ -188,10 +189,11 @@ Theme selection should be stored persistently.
 ### MVP
 
 - [x] Persist one Home zone.
-- [ ] Persist editable 06:00 and 22:00 time rules.
+- [x] Persist editable 06:00 and 22:00 time values.
+- [ ] Schedule 06:00 and 22:00 time rule alarms.
 - [x] Implement safe unmute confirmation flow.
 - [x] Implement automatic mute after countdown.
-- [ ] Store settings with DataStore.
+- [x] Store settings with DataStore.
 - [ ] Store rule history with Room.
 - [x] Restore saved Home rule after app/process recreation.
 - [ ] Add recent event history.
@@ -247,7 +249,7 @@ Theme selection should be stored persistently.
 
 - The current foreground service type should be reviewed against the actual app behavior.
 - The current service still uses a persistent always-on foreground notification.
-- The current app does not yet request or explain runtime Wi-Fi / location permissions.
+- Runtime permission copy is still minimal and should be improved.
 - Room is connected for one Home rule, but history is not implemented yet.
-- DataStore is present but not yet connected to the product flow.
+- Time rule alarms are not implemented yet.
 - Existing tests are placeholder tests only.
