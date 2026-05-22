@@ -25,6 +25,7 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
     }
 
     companion object {
+        const val ACTION_RUN_PENDING = "com.muteify.app.schedule.RUN_PENDING"
         const val EXTRA_SLOT = "extra_schedule_slot"
     }
 }
