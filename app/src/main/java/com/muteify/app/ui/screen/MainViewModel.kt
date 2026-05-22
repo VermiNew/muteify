@@ -102,6 +102,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _morningSchedulePolicy.value = value
         saveMorningScheduleSettings()
     }
+    fun onMorningCountdownSecondsChanged(value: String) {
+        _morningCountdownSeconds.value = value.toCountdownSeconds()
+        saveMorningScheduleSettings()
+    }
     fun onEveningScheduleEnabledChanged(value: Boolean) {
         _eveningScheduleEnabled.value = value
         saveEveningScheduleSettings()
@@ -112,6 +116,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
     fun onEveningSchedulePolicyChanged(value: SchedulePolicy) {
         _eveningSchedulePolicy.value = value
+        saveEveningScheduleSettings()
+    }
+    fun onEveningCountdownSecondsChanged(value: String) {
+        _eveningCountdownSeconds.value = value.toCountdownSeconds()
         saveEveningScheduleSettings()
     }
 
@@ -230,5 +238,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun String.toTimeInput(): String {
         return filter { it.isDigit() || it == ':' }.take(5)
+    }
+
+    private fun String.toCountdownSeconds(): Int {
+        return filter { it.isDigit() }
+            .take(3)
+            .toIntOrNull()
+            ?.coerceIn(0, 300)
+            ?: 0
     }
 }

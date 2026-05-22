@@ -34,9 +34,11 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
     val morningScheduleEnabled by viewModel.morningScheduleEnabled.collectAsState()
     val morningScheduleAction by viewModel.morningScheduleAction.collectAsState()
     val morningSchedulePolicy by viewModel.morningSchedulePolicy.collectAsState()
+    val morningCountdownSeconds by viewModel.morningCountdownSeconds.collectAsState()
     val eveningScheduleEnabled by viewModel.eveningScheduleEnabled.collectAsState()
     val eveningScheduleAction by viewModel.eveningScheduleAction.collectAsState()
     val eveningSchedulePolicy by viewModel.eveningSchedulePolicy.collectAsState()
+    val eveningCountdownSeconds by viewModel.eveningCountdownSeconds.collectAsState()
     val isRunning by viewModel.isRunning.collectAsState()
     val hasNotificationPolicyAccess by viewModel.hasNotificationPolicyAccess.collectAsState()
     val context = LocalContext.current
@@ -168,10 +170,12 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
                 enabled = morningScheduleEnabled,
                 action = morningScheduleAction,
                 policy = morningSchedulePolicy,
+                countdownSeconds = morningCountdownSeconds,
                 controlsEnabled = !isRunning,
                 onEnabledChanged = viewModel::onMorningScheduleEnabledChanged,
                 onActionChanged = viewModel::onMorningScheduleActionChanged,
-                onPolicyChanged = viewModel::onMorningSchedulePolicyChanged
+                onPolicyChanged = viewModel::onMorningSchedulePolicyChanged,
+                onCountdownSecondsChanged = viewModel::onMorningCountdownSecondsChanged
             )
 
             ScheduleSlotBehaviorControls(
@@ -179,10 +183,12 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
                 enabled = eveningScheduleEnabled,
                 action = eveningScheduleAction,
                 policy = eveningSchedulePolicy,
+                countdownSeconds = eveningCountdownSeconds,
                 controlsEnabled = !isRunning,
                 onEnabledChanged = viewModel::onEveningScheduleEnabledChanged,
                 onActionChanged = viewModel::onEveningScheduleActionChanged,
-                onPolicyChanged = viewModel::onEveningSchedulePolicyChanged
+                onPolicyChanged = viewModel::onEveningSchedulePolicyChanged,
+                onCountdownSecondsChanged = viewModel::onEveningCountdownSecondsChanged
             )
         }
 
@@ -202,10 +208,12 @@ fun ScheduleSlotBehaviorControls(
     enabled: Boolean,
     action: SoundAction,
     policy: SchedulePolicy,
+    countdownSeconds: Int,
     controlsEnabled: Boolean,
     onEnabledChanged: (Boolean) -> Unit,
     onActionChanged: (SoundAction) -> Unit,
-    onPolicyChanged: (SchedulePolicy) -> Unit
+    onPolicyChanged: (SchedulePolicy) -> Unit,
+    onCountdownSecondsChanged: (String) -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -237,6 +245,14 @@ fun ScheduleSlotBehaviorControls(
             selected = policy,
             onSelected = onPolicyChanged,
             enabled = controlsEnabled && enabled
+        )
+        OutlinedTextField(
+            value = countdownSeconds.toString(),
+            onValueChange = onCountdownSecondsChanged,
+            label = { Text("$title: odliczanie (s)") },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = controlsEnabled && enabled && policy == SchedulePolicy.AUTO_AFTER_COUNTDOWN,
+            singleLine = true
         )
     }
 }
