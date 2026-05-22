@@ -12,11 +12,11 @@ class ScheduleAlarmScheduler(context: Context) {
     private val alarmManager = appContext.getSystemService(AlarmManager::class.java)
 
     fun scheduleDaily(morningTime: String, nightTime: String) {
-        schedule(ScheduleTrigger.MORNING_UNMUTE_CHECK, morningTime)
-        schedule(ScheduleTrigger.NIGHT_MUTE_CHECK, nightTime)
+        schedule(ScheduleSlot.MORNING, morningTime)
+        schedule(ScheduleSlot.EVENING, nightTime)
     }
 
-    fun schedule(trigger: ScheduleTrigger, timeValue: String) {
+    fun schedule(slot: ScheduleSlot, timeValue: String) {
         val scheduleTime = DailyScheduleTime.parse(timeValue) ?: return
         val triggerAtMillis = scheduleTime
             .nextOccurrenceAfter(ZonedDateTime.now())
@@ -26,25 +26,25 @@ class ScheduleAlarmScheduler(context: Context) {
         alarmManager.setAndAllowWhileIdle(
             AlarmManager.RTC_WAKEUP,
             triggerAtMillis,
-            pendingIntent(trigger)
+            pendingIntent(slot)
         )
     }
 
     fun cancelAll() {
-        ScheduleTrigger.values().forEach(::cancel)
+        ScheduleSlot.values().forEach(::cancel)
     }
 
-    fun cancel(trigger: ScheduleTrigger) {
-        alarmManager.cancel(pendingIntent(trigger))
+    fun cancel(slot: ScheduleSlot) {
+        alarmManager.cancel(pendingIntent(slot))
     }
 
-    private fun pendingIntent(trigger: ScheduleTrigger): PendingIntent {
+    private fun pendingIntent(slot: ScheduleSlot): PendingIntent {
         val intent = Intent(appContext, ScheduleAlarmReceiver::class.java).apply {
-            putExtra(ScheduleAlarmReceiver.EXTRA_TRIGGER, trigger.name)
+            putExtra(ScheduleAlarmReceiver.EXTRA_SLOT, slot.name)
         }
         return PendingIntent.getBroadcast(
             appContext,
-            trigger.requestCode,
+            slot.requestCode,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )

@@ -7,10 +7,10 @@ import android.content.Intent
 class ScheduleAlarmReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
-        if (ScheduleTrigger.fromName(intent.getStringExtra(EXTRA_TRIGGER)) == null) return
+        if (ScheduleSlot.fromName(intent.getStringExtra(EXTRA_SLOT)) == null) return
     }
 
     companion object {
-        const val EXTRA_TRIGGER = "extra_schedule_trigger"
+        const val EXTRA_SLOT = "extra_schedule_slot"
     }
 }
