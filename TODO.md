@@ -177,9 +177,9 @@ Theme selection should be stored persistently.
 ### Now
 
 - [x] Fix the manifest location permission lint error.
-- [ ] Add a permission/status section in the main UI.
-- [ ] Add Notification Policy Access detection before changing audio state.
-- [ ] Replace automatic service-side action execution with a real notification prompt.
+- [x] Add a permission/status section in the main UI.
+- [x] Add Notification Policy Access detection before changing audio state.
+- [x] Replace automatic service-side action execution with a real notification prompt.
 - [ ] Remove the persistent always-on foreground notification.
 - [x] Change pending mute countdown from 60 seconds to 30 seconds.
 - [x] Make pending countdown jobs cancellable.
@@ -187,13 +187,13 @@ Theme selection should be stored persistently.
 
 ### MVP
 
-- [ ] Persist one Home zone.
+- [x] Persist one Home zone.
 - [ ] Persist editable 06:00 and 22:00 time rules.
-- [ ] Implement safe unmute confirmation flow.
-- [ ] Implement automatic mute after countdown.
+- [x] Implement safe unmute confirmation flow.
+- [x] Implement automatic mute after countdown.
 - [ ] Store settings with DataStore.
-- [ ] Store rules and history with Room.
-- [ ] Restore UI state after app/process recreation.
+- [ ] Store rule history with Room.
+- [x] Restore saved Home rule after app/process recreation.
 - [ ] Add recent event history.
 
 ### Later
@@ -247,7 +247,7 @@ Theme selection should be stored persistently.
 
 - The current foreground service type should be reviewed against the actual app behavior.
 - The current service still uses a persistent always-on foreground notification.
-- The current app does not yet request or explain runtime permissions.
-- The current app can attempt to change audio state without checking Notification Policy Access.
-- Room and DataStore are present but not yet connected to the product flow.
+- The current app does not yet request or explain runtime Wi-Fi / location permissions.
+- Room is connected for one Home rule, but history is not implemented yet.
+- DataStore is present but not yet connected to the product flow.
 - Existing tests are placeholder tests only.
