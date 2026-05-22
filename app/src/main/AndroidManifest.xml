@@ -27,6 +27,10 @@
             android:foregroundServiceType="connectedDevice"
             android:exported="false" />
 
+        <receiver
+            android:name=".schedule.ScheduleAlarmReceiver"
+            android:exported="false" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
