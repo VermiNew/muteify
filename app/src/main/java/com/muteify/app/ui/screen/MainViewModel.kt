@@ -33,6 +33,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _actionLeave = MutableStateFlow(SoundAction.SILENCE)
     val actionLeave: StateFlow<SoundAction> = _actionLeave
 
+    private val _morningTime = MutableStateFlow("06:00")
+    val morningTime: StateFlow<String> = _morningTime
+
+    private val _nightTime = MutableStateFlow("22:00")
+    val nightTime: StateFlow<String> = _nightTime
+
     private val _isRunning = MutableStateFlow(false)
     val isRunning: StateFlow<Boolean> = _isRunning
 
@@ -47,6 +53,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun onSsidChanged(value: String) { _ssid.value = value }
     fun onActionEnterChanged(value: SoundAction) { _actionEnter.value = value }
     fun onActionLeaveChanged(value: SoundAction) { _actionLeave.value = value }
+    fun onMorningTimeChanged(value: String) { _morningTime.value = value }
+    fun onNightTimeChanged(value: String) { _nightTime.value = value }
 
     fun refreshPermissionStatus() {
         val notificationManager =

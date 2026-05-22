@@ -27,6 +27,8 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
     val ssid by viewModel.ssid.collectAsState()
     val actionEnter by viewModel.actionEnter.collectAsState()
     val actionLeave by viewModel.actionLeave.collectAsState()
+    val morningTime by viewModel.morningTime.collectAsState()
+    val nightTime by viewModel.nightTime.collectAsState()
     val isRunning by viewModel.isRunning.collectAsState()
     val hasNotificationPolicyAccess by viewModel.hasNotificationPolicyAccess.collectAsState()
     val context = LocalContext.current
@@ -125,6 +127,33 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
                 onSelected = viewModel::onActionLeaveChanged,
                 enabled = !isRunning
             )
+
+            Text(
+                text = "Harmonogram",
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedTextField(
+                    value = morningTime,
+                    onValueChange = viewModel::onMorningTimeChanged,
+                    label = { Text("Rano") },
+                    modifier = Modifier.weight(1f),
+                    enabled = !isRunning,
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = nightTime,
+                    onValueChange = viewModel::onNightTimeChanged,
+                    label = { Text("Wieczorem") },
+                    modifier = Modifier.weight(1f),
+                    enabled = !isRunning,
+                    singleLine = true
+                )
+            }
         }
 
         Button(
