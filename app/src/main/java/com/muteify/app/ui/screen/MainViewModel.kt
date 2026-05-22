@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.muteify.app.data.model.RuleEntity
 import com.muteify.app.data.model.SoundAction
 import com.muteify.app.data.repository.AppDatabase
+import com.muteify.app.data.repository.SettingsRepository
 import com.muteify.app.service.MuteifyService
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +24,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private val ruleDao = AppDatabase.getInstance(application).ruleDao()
+    private val settingsRepository = SettingsRepository(application)
 
     private val _ssid = MutableStateFlow("")
     val ssid: StateFlow<String> = _ssid
@@ -48,13 +50,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     init {
         refreshPermissionStatus()
         observeSavedHomeRule()
+        observeScheduleSettings()
     }
 
     fun onSsidChanged(value: String) { _ssid.value = value }
     fun onActionEnterChanged(value: SoundAction) { _actionEnter.value = value }
     fun onActionLeaveChanged(value: SoundAction) { _actionLeave.value = value }
-    fun onMorningTimeChanged(value: String) { _morningTime.value = value }
-    fun onNightTimeChanged(value: String) { _nightTime.value = value }
+    fun onMorningTimeChanged(value: String) {
+        _morningTime.value = value.toTimeInput()
+        saveScheduleTimes()
+    }
+    fun onNightTimeChanged(value: String) {
+        _nightTime.value = value.toTimeInput()
+        saveScheduleTimes()
+    }
 
     fun refreshPermissionStatus() {
         val notificationManager =
@@ -114,7 +123,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private fun observeScheduleSettings() {
+        viewModelScope.launch {
+            settingsRepository.scheduleSettings.collectLatest { settings ->
+                _morningTime.value = settings.morningTime.toTimeInput()
+                _nightTime.value = settings.nightTime.toTimeInput()
+            }
+        }
+    }
+
+    private fun saveScheduleTimes() {
+        val morningTime = _morningTime.value
+        val nightTime = _nightTime.value
+        viewModelScope.launch {
+            settingsRepository.saveScheduleTimes(morningTime, nightTime)
+        }
+    }
+
     private fun String.toSoundActionOr(default: SoundAction): SoundAction {
         return runCatching { SoundAction.valueOf(this) }.getOrDefault(default)
+    }
+
+    private fun String.toTimeInput(): String {
+        return filter { it.isDigit() || it == ':' }.take(5)
     }
 }
