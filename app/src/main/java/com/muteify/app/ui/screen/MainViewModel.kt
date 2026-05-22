@@ -10,8 +10,10 @@ import com.muteify.app.data.model.RuleEntity
 import com.muteify.app.data.model.SchedulePolicy
 import com.muteify.app.data.model.SoundAction
 import com.muteify.app.data.repository.AppDatabase
+import com.muteify.app.data.repository.ScheduleSettings
 import com.muteify.app.data.repository.ScheduleSlotSettings
 import com.muteify.app.data.repository.SettingsRepository
+import com.muteify.app.schedule.ScheduleAlarmScheduler
 import com.muteify.app.service.MuteifyService
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,6 +29,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val ruleDao = AppDatabase.getInstance(application).ruleDao()
     private val settingsRepository = SettingsRepository(application)
+    private val scheduleAlarmScheduler = ScheduleAlarmScheduler(application)
+    private var currentScheduleSettings = ScheduleSettings()
 
     private val _ssid = MutableStateFlow("")
     val ssid: StateFlow<String> = _ssid
@@ -141,10 +145,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val context = getApplication<Application>()
         if (_isRunning.value) {
             context.stopService(Intent(context, MuteifyService::class.java))
+            scheduleAlarmScheduler.cancelAll()
             _isRunning.value = false
         } else {
             if (_ssid.value.isBlank()) return
             saveHomeRule()
+            scheduleAlarmScheduler.scheduleDaily(currentScheduleSettings)
             val intent = Intent(context, MuteifyService::class.java).apply {
                 putExtra(MuteifyService.EXTRA_SSID, _ssid.value)
                 putExtra(MuteifyService.EXTRA_ACTION_ENTER, _actionEnter.value.name)
@@ -184,6 +190,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun observeScheduleSettings() {
         viewModelScope.launch {
             settingsRepository.scheduleSettings.collectLatest { settings ->
+                currentScheduleSettings = settings
                 _morningTime.value = settings.morningTime.toTimeInput()
                 _nightTime.value = settings.nightTime.toTimeInput()
                 _morningScheduleEnabled.value = settings.morning.enabled
