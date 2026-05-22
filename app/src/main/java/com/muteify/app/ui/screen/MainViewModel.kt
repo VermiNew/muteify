@@ -3,6 +3,7 @@ package com.muteify.app.ui.screen
 import android.app.Application
 import android.app.NotificationManager
 import android.content.Intent
+import android.provider.Settings
 import androidx.lifecycle.AndroidViewModel
 import com.muteify.app.data.model.SoundAction
 import com.muteify.app.service.MuteifyService
@@ -38,6 +39,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val notificationManager =
             getApplication<Application>().getSystemService(NotificationManager::class.java)
         _hasNotificationPolicyAccess.value = notificationManager.isNotificationPolicyAccessGranted
+    }
+
+    fun openNotificationPolicySettings() {
+        val context = getApplication<Application>()
+        val intent = Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(intent)
     }
 
     fun toggleService() {
