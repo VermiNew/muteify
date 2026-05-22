@@ -22,6 +22,7 @@ Unmuting must be deliberate.
 - Keep GPS/geofencing as the final fallback and disabled by default.
 - Provide editable time rules.
 - Show notification prompts before automatic muting.
+- Avoid persistent always-on notifications.
 - Require explicit user confirmation before unmuting.
 - Keep the app battery-efficient and event-driven.
 
@@ -137,6 +138,7 @@ Suggested policies:
 - Avoid active Wi-Fi scanning.
 - Use scheduled alarms for time rules instead of keeping a service alive only to wait for a time.
 - Use a foreground service only when required by Android behavior or during active monitoring/prompt flows.
+- Show notifications only when user action or awareness is required.
 - Keep exactly one active pending countdown for the current event.
 
 ## Android Permission Areas
@@ -178,9 +180,10 @@ Theme selection should be stored persistently.
 - [ ] Add a permission/status section in the main UI.
 - [ ] Add Notification Policy Access detection before changing audio state.
 - [ ] Replace automatic service-side action execution with a real notification prompt.
-- [ ] Change pending mute countdown from 60 seconds to 30 seconds.
-- [ ] Make pending countdown jobs cancellable.
-- [ ] Cancel pending countdowns when monitoring stops.
+- [ ] Remove the persistent always-on foreground notification.
+- [x] Change pending mute countdown from 60 seconds to 30 seconds.
+- [x] Make pending countdown jobs cancellable.
+- [x] Cancel pending countdowns when monitoring stops.
 
 ### MVP
 
@@ -243,8 +246,8 @@ Theme selection should be stored persistently.
 ## Current Known Project Issues
 
 - The current foreground service type should be reviewed against the actual app behavior.
+- The current service still uses a persistent always-on foreground notification.
 - The current app does not yet request or explain runtime permissions.
 - The current app can attempt to change audio state without checking Notification Policy Access.
-- The current debounce implementation can leave delayed actions running after stop.
 - Room and DataStore are present but not yet connected to the product flow.
 - Existing tests are placeholder tests only.

@@ -15,10 +15,16 @@ class RuleEngine(
     private val audioController: AudioController,
     private val wifiMonitor: WifiMonitor
 ) {
+    private companion object {
+        const val PENDING_ACTION_DELAY_MS = 30_000L
+    }
+
     private val scope = CoroutineScope(Dispatchers.Default)
     private var monitorJob: Job? = null
+    private var pendingActionJob: Job? = null
+    private var pendingActionVersion: Long = 0
 
-    // Callback wywoływany gdy trzeba pokazać overlay użytkownikowi
+    // Called when the delayed action is ready to run.
     var onActionPending: ((SoundAction) -> Unit)? = null
 
     private var pendingAction: SoundAction? = null
@@ -45,26 +51,40 @@ class RuleEngine(
 
     fun stop() {
         monitorJob?.cancel()
+        cancelPendingAction()
         wifiMonitor.stop()
     }
 
-    // Odczekaj 60 sekund przed wykonaniem akcji (debounce)
     private fun schedulePendingAction(action: SoundAction) {
+        pendingActionJob?.cancel()
         pendingAction = action
-        scope.launch {
-            delay(60_000)
-            pendingAction?.let { onActionPending?.invoke(it) }
+        val actionVersion = ++pendingActionVersion
+        pendingActionJob = scope.launch {
+            delay(PENDING_ACTION_DELAY_MS)
+            if (pendingActionVersion != actionVersion) return@launch
+            val actionToRun = pendingAction ?: return@launch
+            pendingAction = null
+            pendingActionJob = null
+            onActionPending?.invoke(actionToRun)
         }
     }
 
-    // Wywołane gdy użytkownik zatwierdził akcję z overlay
     fun confirmAction() {
+        pendingActionVersion++
+        pendingActionJob?.cancel()
+        pendingActionJob = null
         pendingAction?.let { audioController.apply(it) }
         pendingAction = null
     }
 
-    // Wywołane gdy użytkownik odrzucił akcję z overlay
     fun dismissAction() {
+        cancelPendingAction()
+    }
+
+    private fun cancelPendingAction() {
+        pendingActionVersion++
+        pendingActionJob?.cancel()
+        pendingActionJob = null
         pendingAction = null
     }
 }
