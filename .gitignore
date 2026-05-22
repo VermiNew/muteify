@@ -1,3 +1,6 @@
+# Based on GitHub's Android gitignore template:
+# https://github.com/github/gitignore/blob/main/Android.gitignore
+
 # Gradle files
 .gradle/
 build/
