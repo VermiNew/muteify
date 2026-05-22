@@ -170,6 +170,37 @@ The app should support four themes:
 
 Theme selection should be stored persistently.
 
+## Task List
+
+### Now
+
+- [x] Fix the manifest location permission lint error.
+- [ ] Add a permission/status section in the main UI.
+- [ ] Add Notification Policy Access detection before changing audio state.
+- [ ] Replace automatic service-side action execution with a real notification prompt.
+- [ ] Change pending mute countdown from 60 seconds to 30 seconds.
+- [ ] Make pending countdown jobs cancellable.
+- [ ] Cancel pending countdowns when monitoring stops.
+
+### MVP
+
+- [ ] Persist one Home zone.
+- [ ] Persist editable 06:00 and 22:00 time rules.
+- [ ] Implement safe unmute confirmation flow.
+- [ ] Implement automatic mute after countdown.
+- [ ] Store settings with DataStore.
+- [ ] Store rules and history with Room.
+- [ ] Restore UI state after app/process recreation.
+- [ ] Add recent event history.
+
+### Later
+
+- [ ] Add trusted Bluetooth device detection.
+- [ ] Add multiple trusted zones.
+- [ ] Add opt-in GPS/geofencing fallback.
+- [ ] Add advanced rule priority settings.
+- [ ] Add four polished app themes: Day, Night, Reading, OLED.
+
 ## Suggested Implementation Phases
 
 ### Phase 1: Stabilize Current Prototype
@@ -211,7 +242,6 @@ Theme selection should be stored persistently.
 
 ## Current Known Project Issues
 
-- `lint` currently fails because `ACCESS_FINE_LOCATION` is declared without `ACCESS_COARSE_LOCATION`.
 - The current foreground service type should be reviewed against the actual app behavior.
 - The current app does not yet request or explain runtime permissions.
 - The current app can attempt to change audio state without checking Notification Policy Access.
