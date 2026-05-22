@@ -82,6 +82,26 @@ class SettingsRepository(context: Context) {
         }
     }
 
+    suspend fun saveMorningScheduleSettings(settings: ScheduleSlotSettings) {
+        dataStore.edit { preferences ->
+            preferences[MORNING_ENABLED_KEY] = settings.enabled
+            preferences[MORNING_TIME_KEY] = settings.time
+            preferences[MORNING_ACTION_KEY] = settings.action.name
+            preferences[MORNING_POLICY_KEY] = settings.policy.name
+            preferences[MORNING_COUNTDOWN_SECONDS_KEY] = settings.countdownSeconds
+        }
+    }
+
+    suspend fun saveEveningScheduleSettings(settings: ScheduleSlotSettings) {
+        dataStore.edit { preferences ->
+            preferences[EVENING_ENABLED_KEY] = settings.enabled
+            preferences[EVENING_TIME_KEY] = settings.time
+            preferences[EVENING_ACTION_KEY] = settings.action.name
+            preferences[EVENING_POLICY_KEY] = settings.policy.name
+            preferences[EVENING_COUNTDOWN_SECONDS_KEY] = settings.countdownSeconds
+        }
+    }
+
     private fun String?.toSoundActionOr(default: SoundAction): SoundAction {
         return this?.let { runCatching { SoundAction.valueOf(it) }.getOrNull() } ?: default
     }

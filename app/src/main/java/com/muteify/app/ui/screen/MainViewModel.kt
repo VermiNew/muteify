@@ -7,8 +7,10 @@ import android.provider.Settings
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.muteify.app.data.model.RuleEntity
+import com.muteify.app.data.model.SchedulePolicy
 import com.muteify.app.data.model.SoundAction
 import com.muteify.app.data.repository.AppDatabase
+import com.muteify.app.data.repository.ScheduleSlotSettings
 import com.muteify.app.data.repository.SettingsRepository
 import com.muteify.app.service.MuteifyService
 import kotlinx.coroutines.flow.collectLatest
@@ -41,6 +43,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _nightTime = MutableStateFlow("22:00")
     val nightTime: StateFlow<String> = _nightTime
 
+    private val _morningScheduleEnabled = MutableStateFlow(true)
+    val morningScheduleEnabled: StateFlow<Boolean> = _morningScheduleEnabled
+
+    private val _morningScheduleAction = MutableStateFlow(SoundAction.UNSILENCE)
+    val morningScheduleAction: StateFlow<SoundAction> = _morningScheduleAction
+
+    private val _morningSchedulePolicy = MutableStateFlow(SchedulePolicy.REQUIRE_CONFIRMATION)
+    val morningSchedulePolicy: StateFlow<SchedulePolicy> = _morningSchedulePolicy
+
+    private val _morningCountdownSeconds = MutableStateFlow(30)
+    val morningCountdownSeconds: StateFlow<Int> = _morningCountdownSeconds
+
+    private val _eveningScheduleEnabled = MutableStateFlow(true)
+    val eveningScheduleEnabled: StateFlow<Boolean> = _eveningScheduleEnabled
+
+    private val _eveningScheduleAction = MutableStateFlow(SoundAction.SILENCE)
+    val eveningScheduleAction: StateFlow<SoundAction> = _eveningScheduleAction
+
+    private val _eveningSchedulePolicy = MutableStateFlow(SchedulePolicy.AUTO_AFTER_COUNTDOWN)
+    val eveningSchedulePolicy: StateFlow<SchedulePolicy> = _eveningSchedulePolicy
+
+    private val _eveningCountdownSeconds = MutableStateFlow(30)
+    val eveningCountdownSeconds: StateFlow<Int> = _eveningCountdownSeconds
+
     private val _isRunning = MutableStateFlow(false)
     val isRunning: StateFlow<Boolean> = _isRunning
 
@@ -63,6 +89,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun onNightTimeChanged(value: String) {
         _nightTime.value = value.toTimeInput()
         saveScheduleTimes()
+    }
+    fun onMorningScheduleEnabledChanged(value: Boolean) {
+        _morningScheduleEnabled.value = value
+        saveMorningScheduleSettings()
+    }
+    fun onMorningScheduleActionChanged(value: SoundAction) {
+        _morningScheduleAction.value = value
+        saveMorningScheduleSettings()
+    }
+    fun onMorningSchedulePolicyChanged(value: SchedulePolicy) {
+        _morningSchedulePolicy.value = value
+        saveMorningScheduleSettings()
+    }
+    fun onEveningScheduleEnabledChanged(value: Boolean) {
+        _eveningScheduleEnabled.value = value
+        saveEveningScheduleSettings()
+    }
+    fun onEveningScheduleActionChanged(value: SoundAction) {
+        _eveningScheduleAction.value = value
+        saveEveningScheduleSettings()
+    }
+    fun onEveningSchedulePolicyChanged(value: SchedulePolicy) {
+        _eveningSchedulePolicy.value = value
+        saveEveningScheduleSettings()
     }
 
     fun refreshPermissionStatus() {
@@ -128,6 +178,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             settingsRepository.scheduleSettings.collectLatest { settings ->
                 _morningTime.value = settings.morningTime.toTimeInput()
                 _nightTime.value = settings.nightTime.toTimeInput()
+                _morningScheduleEnabled.value = settings.morning.enabled
+                _morningScheduleAction.value = settings.morning.action
+                _morningSchedulePolicy.value = settings.morning.policy
+                _morningCountdownSeconds.value = settings.morning.countdownSeconds
+                _eveningScheduleEnabled.value = settings.evening.enabled
+                _eveningScheduleAction.value = settings.evening.action
+                _eveningSchedulePolicy.value = settings.evening.policy
+                _eveningCountdownSeconds.value = settings.evening.countdownSeconds
             }
         }
     }
@@ -137,6 +195,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val nightTime = _nightTime.value
         viewModelScope.launch {
             settingsRepository.saveScheduleTimes(morningTime, nightTime)
+        }
+    }
+
+    private fun saveMorningScheduleSettings() {
+        val settings = ScheduleSlotSettings(
+            enabled = _morningScheduleEnabled.value,
+            time = _morningTime.value,
+            action = _morningScheduleAction.value,
+            policy = _morningSchedulePolicy.value,
+            countdownSeconds = _morningCountdownSeconds.value
+        )
+        viewModelScope.launch {
+            settingsRepository.saveMorningScheduleSettings(settings)
+        }
+    }
+
+    private fun saveEveningScheduleSettings() {
+        val settings = ScheduleSlotSettings(
+            enabled = _eveningScheduleEnabled.value,
+            time = _nightTime.value,
+            action = _eveningScheduleAction.value,
+            policy = _eveningSchedulePolicy.value,
+            countdownSeconds = _eveningCountdownSeconds.value
+        )
+        viewModelScope.launch {
+            settingsRepository.saveEveningScheduleSettings(settings)
         }
     }
 
