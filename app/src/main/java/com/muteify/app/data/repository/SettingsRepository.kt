@@ -9,6 +9,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.muteify.app.data.model.SchedulePolicy
 import com.muteify.app.data.model.SoundAction
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 private val Context.settingsDataStore by preferencesDataStore(name = "settings")
@@ -73,6 +74,10 @@ class SettingsRepository(context: Context) {
                     ?: eveningDefault.countdownSeconds
             )
         )
+    }
+
+    suspend fun getScheduleSettings(): ScheduleSettings {
+        return scheduleSettings.first()
     }
 
     suspend fun saveScheduleTimes(morningTime: String, nightTime: String) {
