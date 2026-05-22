@@ -27,6 +27,9 @@ class RuleEngine(
     // Called when the delayed action is ready to run.
     var onActionPending: ((SoundAction) -> Unit)? = null
 
+    // Called when the user can still cancel or confirm the delayed action.
+    var onActionScheduled: ((SoundAction) -> Unit)? = null
+
     private var pendingAction: SoundAction? = null
     private var targetSsid: String = ""
     private var actionEnter: SoundAction = SoundAction.SILENCE
@@ -58,6 +61,7 @@ class RuleEngine(
     private fun schedulePendingAction(action: SoundAction) {
         pendingActionJob?.cancel()
         pendingAction = action
+        onActionScheduled?.invoke(action)
         val actionVersion = ++pendingActionVersion
         pendingActionJob = scope.launch {
             delay(PENDING_ACTION_DELAY_MS)
