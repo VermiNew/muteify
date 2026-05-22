@@ -1,9 +1,9 @@
 package com.muteify.app.ui.screen
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -15,6 +15,7 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
     val actionEnter by viewModel.actionEnter.collectAsState()
     val actionLeave by viewModel.actionLeave.collectAsState()
     val isRunning by viewModel.isRunning.collectAsState()
+    val hasNotificationPolicyAccess by viewModel.hasNotificationPolicyAccess.collectAsState()
 
     Column(
         modifier = Modifier
@@ -33,6 +34,8 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
             color = if (isRunning) MaterialTheme.colorScheme.primary
                     else MaterialTheme.colorScheme.onSurfaceVariant
         )
+
+        PermissionStatusCard(hasNotificationPolicyAccess)
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -67,6 +70,37 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
             enabled = isRunning || ssid.isNotBlank()
         ) {
             Text(if (isRunning) "Zatrzymaj" else "Zapisz i włącz")
+        }
+    }
+}
+
+@Composable
+fun PermissionStatusCard(hasNotificationPolicyAccess: Boolean) {
+    val statusText = if (hasNotificationPolicyAccess) "Przyznany" else "Brak"
+    val statusColor = if (hasNotificationPolicyAccess) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.error
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        tonalElevation = 2.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = "Uprawnienia",
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = "Dostęp do trybu Nie przeszkadzać: $statusText",
+                style = MaterialTheme.typography.bodyMedium,
+                color = statusColor
+            )
         }
     }
 }
