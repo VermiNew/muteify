@@ -9,10 +9,19 @@ class WifiPresenceChecker(context: Context) {
         context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
 
     fun currentSsid(): String? {
-        return wifiManager.connectionInfo?.ssid?.removeSurrounding("\"")
+        return wifiManager.connectionInfo?.ssid?.toKnownSsidOrNull()
     }
 
     fun isConnectedTo(targetSsid: String): Boolean {
         return currentSsid() == targetSsid
+    }
+
+    private fun String.toKnownSsidOrNull(): String? {
+        val ssid = removeSurrounding("\"")
+        return ssid.takeUnless {
+            it.isBlank() ||
+                it == WifiManager.UNKNOWN_SSID ||
+                it == "0x"
+        }
     }
 }

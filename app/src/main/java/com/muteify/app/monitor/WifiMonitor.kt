@@ -53,10 +53,10 @@ class WifiMonitor(private val context: Context) {
     private var targetSsid: String = ""
 
     private fun updateState(currentSsid: String?) {
-        _state.value = if (currentSsid != null && currentSsid == targetSsid) {
-            TriggerState.HOME
-        } else {
-            TriggerState.AWAY
+        _state.value = when {
+            targetSsid.isBlank() || currentSsid == null -> TriggerState.UNKNOWN
+            currentSsid == targetSsid -> TriggerState.HOME
+            else -> TriggerState.AWAY
         }
     }
 }
