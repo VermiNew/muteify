@@ -11,6 +11,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.muteify.app.data.model.SchedulePolicy
 import com.muteify.app.data.model.SoundAction
+import com.muteify.app.data.model.TriggerState
 import com.muteify.app.data.repository.ScheduleSlotSettings
 
 class SchedulePromptNotifier(context: Context) {
@@ -18,11 +19,16 @@ class SchedulePromptNotifier(context: Context) {
     private val appContext = context.applicationContext
     private val notificationManager = appContext.getSystemService(NotificationManager::class.java)
 
-    fun show(slot: ScheduleSlot, settings: ScheduleSlotSettings, policy: SchedulePolicy) {
+    fun show(
+        slot: ScheduleSlot,
+        settings: ScheduleSlotSettings,
+        policy: SchedulePolicy,
+        homeState: TriggerState?
+    ) {
         if (!canPostNotifications()) return
         createChannel()
 
-        val text = promptText(slot, settings, policy)
+        val text = promptText(slot, settings, policy, homeState)
         val builder = NotificationCompat.Builder(appContext, CHANNEL_ID)
             .setContentTitle("Mute-ify")
             .setContentText(text)
@@ -71,7 +77,8 @@ class SchedulePromptNotifier(context: Context) {
     private fun promptText(
         slot: ScheduleSlot,
         settings: ScheduleSlotSettings,
-        policy: SchedulePolicy
+        policy: SchedulePolicy,
+        homeState: TriggerState?
     ): String {
         val slotLabel = when (slot) {
             ScheduleSlot.MORNING -> "Rano"
@@ -82,6 +89,14 @@ class SchedulePromptNotifier(context: Context) {
             SoundAction.UNSILENCE -> "odcisz"
             SoundAction.VIBRATE -> "włącz wibracje"
             SoundAction.DO_NOTHING -> "bez zmian"
+        }
+        if (settings.action == SoundAction.UNSILENCE) {
+            return when (homeState) {
+                TriggerState.HOME -> "$slotLabel: w domu, potwierdź odciszenie"
+                TriggerState.AWAY -> "$slotLabel: poza domem, odcisz ręcznie"
+                TriggerState.UNKNOWN -> "$slotLabel: miejsce nieznane, odcisz ręcznie"
+                null -> "$slotLabel: potwierdź: $actionLabel"
+            }
         }
         return when (policy) {
             SchedulePolicy.AUTO_AFTER_COUNTDOWN ->

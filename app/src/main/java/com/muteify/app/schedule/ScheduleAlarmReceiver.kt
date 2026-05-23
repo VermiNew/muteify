@@ -5,12 +5,16 @@ import android.content.Context
 import android.content.Intent
 import com.muteify.app.data.model.SchedulePolicy
 import com.muteify.app.data.model.SoundAction
+import com.muteify.app.data.model.TriggerState
+import com.muteify.app.data.repository.AppDatabase
 import com.muteify.app.data.repository.ScheduleSettings
 import com.muteify.app.data.repository.ScheduleSlotSettings
 import com.muteify.app.data.repository.SettingsRepository
 import com.muteify.app.engine.AudioController
+import com.muteify.app.monitor.WifiPresenceChecker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class ScheduleAlarmReceiver : BroadcastReceiver() {
@@ -44,11 +48,12 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
                 notifier
             )
             ACTION_DISMISS -> dismissPendingAction(slot, scheduler, notifier)
-            else -> handleScheduleTrigger(slot, settings, slotSettings, scheduler, notifier)
+            else -> handleScheduleTrigger(context, slot, settings, slotSettings, scheduler, notifier)
         }
     }
 
-    private fun handleScheduleTrigger(
+    private suspend fun handleScheduleTrigger(
+        context: Context,
         slot: ScheduleSlot,
         settings: ScheduleSettings,
         slotSettings: ScheduleSlotSettings,
@@ -63,7 +68,8 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
         }
 
         val policy = slotSettings.effectivePolicy()
-        notifier.show(slot, slotSettings, policy)
+        val homeState = resolveHomeState(context, slotSettings)
+        notifier.show(slot, slotSettings, policy, homeState)
         if (policy == SchedulePolicy.AUTO_AFTER_COUNTDOWN) {
             scheduler.schedulePendingAction(slot, slotSettings.countdownSeconds)
         } else {
@@ -104,6 +110,25 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
     ) {
         scheduler.cancelPendingAction(slot)
         notifier.dismiss(slot)
+    }
+
+    private suspend fun resolveHomeState(
+        context: Context,
+        settings: ScheduleSlotSettings
+    ): TriggerState? {
+        if (settings.action != SoundAction.UNSILENCE) return null
+
+        val homeRule = AppDatabase.getInstance(context).ruleDao().getAllRules().first()
+            .firstOrNull { it.isEnabled && it.wifiSsid.isNotBlank() }
+            ?: return TriggerState.UNKNOWN
+        val currentSsid = WifiPresenceChecker(context).currentSsid()
+            ?: return TriggerState.UNKNOWN
+
+        return if (currentSsid == homeRule.wifiSsid) {
+            TriggerState.HOME
+        } else {
+            TriggerState.AWAY
+        }
     }
 
     private fun ScheduleSettings.settingsFor(slot: ScheduleSlot): ScheduleSlotSettings {
