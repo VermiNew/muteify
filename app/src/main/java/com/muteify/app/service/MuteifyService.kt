@@ -19,9 +19,9 @@ import com.muteify.app.monitor.WifiMonitor
 class MuteifyService : Service() {
 
     companion object {
-        const val CHANNEL_ID = "muteify_service"
+        const val LEGACY_SERVICE_CHANNEL_ID = "muteify_service"
         const val PROMPT_CHANNEL_ID = "muteify_prompt"
-        const val NOTIFICATION_ID = 1
+        const val PROMPT_NOTIFICATION_ID = 1
         const val EXTRA_SSID = "extra_ssid"
         const val EXTRA_ACTION_ENTER = "extra_action_enter"
         const val EXTRA_ACTION_LEAVE = "extra_action_leave"
@@ -45,21 +45,20 @@ class MuteifyService : Service() {
             if (action.canRunAutomatically()) {
                 audioController.apply(action)
             }
-            showMonitoringNotification()
+            clearPendingActionNotification()
         }
         createNotificationChannels()
-        startForeground(NOTIFICATION_ID, buildMonitoringNotification())
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_CONFIRM -> {
                 ruleEngine.confirmAction()
-                showMonitoringNotification()
+                clearPendingActionNotification()
             }
             ACTION_DISMISS -> {
                 ruleEngine.dismissAction()
-                showMonitoringNotification()
+                clearPendingActionNotification()
             }
             else -> {
                 val ssid = intent?.getStringExtra(EXTRA_SSID) ?: return START_STICKY
@@ -75,52 +74,38 @@ class MuteifyService : Service() {
 
     override fun onDestroy() {
         ruleEngine.stop()
+        clearPendingActionNotification()
         super.onDestroy()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     private fun createNotificationChannels() {
-        val serviceChannel = NotificationChannel(
-            CHANNEL_ID,
-            "Mute-ify działa w tle",
-            NotificationManager.IMPORTANCE_LOW
-        )
+        val notificationManager = getSystemService(NotificationManager::class.java)
         val promptChannel = NotificationChannel(
             PROMPT_CHANNEL_ID,
             "Mute-ify monity",
             NotificationManager.IMPORTANCE_DEFAULT
         )
-        getSystemService(NotificationManager::class.java)
-            .createNotificationChannels(listOf(serviceChannel, promptChannel))
-    }
-
-    private fun showMonitoringNotification() {
-        if (!canPostNotifications()) return
-        getSystemService(NotificationManager::class.java)
-            .notify(NOTIFICATION_ID, buildMonitoringNotification())
+        notificationManager.deleteNotificationChannel(LEGACY_SERVICE_CHANNEL_ID)
+        notificationManager.createNotificationChannel(promptChannel)
     }
 
     private fun showPendingActionNotification(action: SoundAction) {
         if (!canPostNotifications()) return
         getSystemService(NotificationManager::class.java)
-            .notify(NOTIFICATION_ID, buildPendingActionNotification(action))
+            .notify(PROMPT_NOTIFICATION_ID, buildPendingActionNotification(action))
+    }
+
+    private fun clearPendingActionNotification() {
+        getSystemService(NotificationManager::class.java)
+            .cancel(PROMPT_NOTIFICATION_ID)
     }
 
     private fun canPostNotifications(): Boolean {
         return Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
-    }
-
-    private fun buildMonitoringNotification(): Notification {
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Mute-ify")
-            .setContentText("Monitorowanie aktywne")
-            .setSmallIcon(android.R.drawable.ic_lock_silent_mode)
-            .setOngoing(true)
-            .setOnlyAlertOnce(true)
-            .build()
     }
 
     private fun buildPendingActionNotification(action: SoundAction): Notification {

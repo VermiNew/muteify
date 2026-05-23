@@ -181,7 +181,7 @@ Theme selection should be stored persistently.
 - [x] Add Notification Policy Access detection before changing audio state.
 - [x] Replace automatic service-side action execution with a real notification prompt.
 - [x] Add runtime Wi-Fi / location permission request.
-- [ ] Remove the persistent always-on foreground notification.
+- [x] Remove the persistent always-on foreground notification.
 - [x] Change pending mute countdown from 60 seconds to 30 seconds.
 - [x] Make pending countdown jobs cancellable.
 - [x] Cancel pending countdowns when monitoring stops.
@@ -247,8 +247,7 @@ Theme selection should be stored persistently.
 
 ## Current Known Project Issues
 
-- The current foreground service type should be reviewed against the actual app behavior.
-- The current service still uses a persistent always-on foreground notification.
+- Wi-Fi monitoring no longer uses a persistent foreground notification; long-term recovery after process death still needs design.
 - Runtime permission copy is still minimal and should be improved.
 - Room is connected for one Home rule, but history is not implemented yet.
 - Time rule alarms are not implemented yet.

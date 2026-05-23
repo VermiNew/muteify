@@ -156,7 +156,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 putExtra(MuteifyService.EXTRA_ACTION_ENTER, _actionEnter.value.name)
                 putExtra(MuteifyService.EXTRA_ACTION_LEAVE, _actionLeave.value.name)
             }
-            context.startForegroundService(intent)
+            context.startService(intent)
             _isRunning.value = true
         }
     }
