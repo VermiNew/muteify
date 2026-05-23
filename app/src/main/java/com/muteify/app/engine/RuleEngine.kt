@@ -41,11 +41,20 @@ class RuleEngine(
         actionLeave = leave
         wifiMonitor.start(ssid)
         monitorJob = scope.launch {
+            var lastState: TriggerState? = null
             wifiMonitor.state
                 .collect { state ->
+                    val previousState = lastState
+                    lastState = state
+                    if (previousState == null || previousState == state) return@collect
+
                     when (state) {
-                        TriggerState.HOME -> schedulePendingAction(actionEnter)
-                        TriggerState.AWAY -> schedulePendingAction(actionLeave)
+                        TriggerState.HOME -> if (previousState == TriggerState.AWAY) {
+                            schedulePendingAction(actionEnter)
+                        }
+                        TriggerState.AWAY -> if (previousState == TriggerState.HOME) {
+                            schedulePendingAction(actionLeave)
+                        }
                         TriggerState.UNKNOWN -> Unit
                     }
                 }
