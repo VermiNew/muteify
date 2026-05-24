@@ -190,7 +190,7 @@ Theme selection should be stored persistently.
 
 - [x] Persist one Home zone.
 - [x] Persist editable 06:00 and 22:00 time values.
-- [ ] Schedule 06:00 and 22:00 time rule alarms.
+- [x] Schedule 06:00 and 22:00 time rule alarms.
 - [x] Implement safe unmute confirmation flow.
 - [x] Implement automatic mute after countdown.
 - [x] Store settings with DataStore.
@@ -250,5 +250,5 @@ Theme selection should be stored persistently.
 - Wi-Fi monitoring no longer uses a persistent foreground notification; long-term recovery after process death still needs design.
 - Runtime permission copy is still minimal and should be improved.
 - Room is connected for one Home rule, but history is not implemented yet.
-- Time rule alarms are not implemented yet.
+- Time rule alarms are implemented; exact-alarm permission and fallback behavior still need product handling.
 - Existing tests are placeholder tests only.
