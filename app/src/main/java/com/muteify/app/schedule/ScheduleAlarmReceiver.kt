@@ -7,6 +7,7 @@ import com.muteify.app.data.model.SchedulePolicy
 import com.muteify.app.data.model.SoundAction
 import com.muteify.app.data.model.TriggerState
 import com.muteify.app.data.repository.AppDatabase
+import com.muteify.app.data.repository.RuleHistoryRepository
 import com.muteify.app.data.repository.ScheduleSettings
 import com.muteify.app.data.repository.ScheduleSlotSettings
 import com.muteify.app.data.repository.SettingsRepository
@@ -37,18 +38,42 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
         val slotSettings = settings.settingsFor(slot)
         val scheduler = ScheduleAlarmScheduler(context)
         val notifier = SchedulePromptNotifier(context)
+        val historyRepository = RuleHistoryRepository(context)
 
         when (intent.action) {
-            ACTION_CONFIRM -> runPendingAction(context, slot, slotSettings, scheduler, notifier)
+            ACTION_CONFIRM -> runPendingAction(
+                context,
+                slot,
+                slotSettings,
+                scheduler,
+                notifier,
+                historyRepository,
+                outcome = "confirmed"
+            )
             ACTION_RUN_PENDING -> runAutomaticPendingAction(
                 context,
                 slot,
                 slotSettings,
                 scheduler,
-                notifier
+                notifier,
+                historyRepository
             )
-            ACTION_DISMISS -> dismissPendingAction(slot, scheduler, notifier)
-            else -> handleScheduleTrigger(context, slot, settings, slotSettings, scheduler, notifier)
+            ACTION_DISMISS -> dismissPendingAction(
+                slot,
+                slotSettings,
+                scheduler,
+                notifier,
+                historyRepository
+            )
+            else -> handleScheduleTrigger(
+                context,
+                slot,
+                settings,
+                slotSettings,
+                scheduler,
+                notifier,
+                historyRepository
+            )
         }
     }
 
@@ -58,12 +83,22 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
         settings: ScheduleSettings,
         slotSettings: ScheduleSlotSettings,
         scheduler: ScheduleAlarmScheduler,
-        notifier: SchedulePromptNotifier
+        notifier: SchedulePromptNotifier,
+        historyRepository: RuleHistoryRepository
     ) {
         scheduler.scheduleDaily(settings)
 
         if (!slotSettings.enabled) {
             dismissPendingAction(slot, scheduler, notifier)
+            recordScheduleEvent(
+                historyRepository = historyRepository,
+                slot = slot,
+                settings = slotSettings,
+                policy = slotSettings.effectivePolicy(),
+                homeState = null,
+                outcome = "skipped_disabled",
+                details = "Schedule slot is disabled"
+            )
             return
         }
 
@@ -75,32 +110,113 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
         } else {
             scheduler.cancelPendingAction(slot)
         }
+        recordScheduleEvent(
+            historyRepository = historyRepository,
+            slot = slot,
+            settings = slotSettings,
+            policy = policy,
+            homeState = homeState,
+            outcome = "prompted",
+            details = "Schedule trigger handled"
+        )
     }
 
-    private fun runPendingAction(
+    private suspend fun runPendingAction(
         context: Context,
         slot: ScheduleSlot,
         settings: ScheduleSlotSettings,
         scheduler: ScheduleAlarmScheduler,
-        notifier: SchedulePromptNotifier
+        notifier: SchedulePromptNotifier,
+        historyRepository: RuleHistoryRepository,
+        outcome: String
     ) {
         dismissPendingAction(slot, scheduler, notifier)
-        if (!settings.enabled) return
-        AudioController(context).apply(settings.action)
+        if (!settings.enabled) {
+            recordScheduleEvent(
+                historyRepository = historyRepository,
+                slot = slot,
+                settings = settings,
+                policy = settings.effectivePolicy(),
+                homeState = null,
+                outcome = "skipped_disabled",
+                details = "Pending schedule action was skipped because the slot is disabled"
+            )
+            return
+        }
+        val audioController = AudioController(context)
+        if (settings.action != SoundAction.DO_NOTHING && !audioController.canChangeRingerMode()) {
+            recordScheduleEvent(
+                historyRepository = historyRepository,
+                slot = slot,
+                settings = settings,
+                policy = settings.effectivePolicy(),
+                homeState = null,
+                outcome = "skipped_missing_notification_policy_access",
+                details = "Schedule action was skipped because notification policy access is missing"
+            )
+            return
+        }
+        audioController.apply(settings.action)
+        recordScheduleEvent(
+            historyRepository = historyRepository,
+            slot = slot,
+            settings = settings,
+            policy = settings.effectivePolicy(),
+            homeState = null,
+            outcome = outcome,
+            details = "Schedule action applied"
+        )
     }
 
-    private fun runAutomaticPendingAction(
+    private suspend fun runAutomaticPendingAction(
         context: Context,
         slot: ScheduleSlot,
         settings: ScheduleSlotSettings,
         scheduler: ScheduleAlarmScheduler,
-        notifier: SchedulePromptNotifier
+        notifier: SchedulePromptNotifier,
+        historyRepository: RuleHistoryRepository
     ) {
         if (settings.effectivePolicy() != SchedulePolicy.AUTO_AFTER_COUNTDOWN) {
             dismissPendingAction(slot, scheduler, notifier)
+            recordScheduleEvent(
+                historyRepository = historyRepository,
+                slot = slot,
+                settings = settings,
+                policy = settings.effectivePolicy(),
+                homeState = null,
+                outcome = "skipped_policy_changed",
+                details = "Pending schedule action was skipped because policy changed"
+            )
             return
         }
-        runPendingAction(context, slot, settings, scheduler, notifier)
+        runPendingAction(
+            context,
+            slot,
+            settings,
+            scheduler,
+            notifier,
+            historyRepository,
+            outcome = "auto_executed"
+        )
+    }
+
+    private suspend fun dismissPendingAction(
+        slot: ScheduleSlot,
+        settings: ScheduleSlotSettings,
+        scheduler: ScheduleAlarmScheduler,
+        notifier: SchedulePromptNotifier,
+        historyRepository: RuleHistoryRepository
+    ) {
+        dismissPendingAction(slot, scheduler, notifier)
+        recordScheduleEvent(
+            historyRepository = historyRepository,
+            slot = slot,
+            settings = settings,
+            policy = settings.effectivePolicy(),
+            homeState = null,
+            outcome = "dismissed",
+            details = "Pending schedule action was cancelled"
+        )
     }
 
     private fun dismissPendingAction(
@@ -129,6 +245,25 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
         } else {
             TriggerState.AWAY
         }
+    }
+
+    private suspend fun recordScheduleEvent(
+        historyRepository: RuleHistoryRepository,
+        slot: ScheduleSlot,
+        settings: ScheduleSlotSettings,
+        policy: SchedulePolicy,
+        homeState: TriggerState?,
+        outcome: String,
+        details: String
+    ) {
+        historyRepository.recordEvent(
+            source = "schedule:${slot.name.lowercase()}",
+            triggerState = homeState?.name ?: "NOT_APPLICABLE",
+            action = settings.action.name,
+            policy = policy.name,
+            outcome = outcome,
+            details = details
+        )
     }
 
     private fun ScheduleSettings.settingsFor(slot: ScheduleSlot): ScheduleSlotSettings {
