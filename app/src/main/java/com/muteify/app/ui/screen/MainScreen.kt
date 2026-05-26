@@ -308,6 +308,9 @@ fun NextScheduleCard(summary: String) {
 
 @Composable
 fun RecentHistorySection(events: List<RuleHistoryEntity>) {
+    var selectedFilter by remember { mutableStateOf(HistoryFilter.ALL) }
+    val filteredEvents = events.filter { event -> selectedFilter.matches(event) }
+
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
@@ -321,20 +324,45 @@ fun RecentHistorySection(events: List<RuleHistoryEntity>) {
                 text = "Ostatnie zdarzenia",
                 style = MaterialTheme.typography.titleMedium
             )
-            if (events.isEmpty()) {
+            HistoryFilterRow(
+                selectedFilter = selectedFilter,
+                onFilterSelected = { selectedFilter = it }
+            )
+            if (filteredEvents.isEmpty()) {
                 Text(
-                    text = "Brak zdarzeń",
+                    text = if (events.isEmpty()) "Brak zdarzeń" else "Brak zdarzeń dla filtra",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
-                events.forEachIndexed { index, event ->
+                filteredEvents.forEachIndexed { index, event ->
                     if (index > 0) {
                         HorizontalDivider()
                     }
                     HistoryEventRow(event = event)
                 }
             }
+        }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalLayoutApi::class)
+private fun HistoryFilterRow(
+    selectedFilter: HistoryFilter,
+    onFilterSelected: (HistoryFilter) -> Unit
+) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        HistoryFilter.entries.forEach { filter ->
+            FilterChip(
+                selected = selectedFilter == filter,
+                onClick = { onFilterSelected(filter) },
+                label = { Text(filter.label) }
+            )
         }
     }
 }
@@ -540,6 +568,24 @@ private data class PermissionDiagnostic(
     val isBlocking: Boolean,
     val isOptional: Boolean = false
 )
+
+private enum class HistoryFilter(val label: String) {
+    ALL("Wszystkie"),
+    SCHEDULE("Harmonogram"),
+    WIFI("Wi-Fi"),
+    CANCELLED("Anulowane"),
+    EXECUTED("Wykonane");
+
+    fun matches(event: RuleHistoryEntity): Boolean {
+        return when (this) {
+            ALL -> true
+            SCHEDULE -> event.source.startsWith("schedule:")
+            WIFI -> event.source.startsWith("wifi:")
+            CANCELLED -> event.outcome == "dismissed"
+            EXECUTED -> event.outcome in setOf("confirmed", "auto_executed")
+        }
+    }
+}
 
 private fun isPostNotificationsPermissionGranted(context: Context): Boolean {
     return Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
