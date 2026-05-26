@@ -172,6 +172,40 @@ The app should support four themes:
 
 Theme selection should be stored persistently.
 
+## Quality of Life Ideas
+
+### Most Practical
+
+- [ ] Show why the phone is currently muted, for example: muted by evening schedule or muted after leaving Home.
+- [ ] Show the next scheduled action, for example: next action today at 22:00, mute after 30 seconds.
+- [ ] Improve the permission screen with concrete diagnosis: what works, what blocks automation, and what is optional.
+
+### History and Trust
+
+- [ ] Add history filters: Schedule, Wi-Fi, Cancelled, Executed.
+- [ ] Show readable history details: trigger, context, decision, and reason for skipped actions.
+- [ ] Add a compact latest-decision log with the last 1-3 events near the top of the main screen.
+- [ ] Add history export to text or CSV for debugging.
+
+### Behavior Controls
+
+- [ ] Add a visible safety toggle for never unmuting automatically.
+- [ ] Add vacation mode or automation pause until a selected time or date.
+- [ ] Add one-off quiet hours, for example: mute until 08:00.
+- [ ] Add a mute-only option that skips the prompt and mutes after countdown, while still forbidding automatic unmute.
+
+### Wi-Fi and Home
+
+- [ ] Add a button to set the current Wi-Fi network as Home instead of typing the SSID manually.
+- [ ] Show the currently detected Wi-Fi network and state: Home, Away, Unknown.
+- [ ] Warn when SSID is unavailable because location permission is missing, location is disabled, or Wi-Fi is off.
+
+### UI
+
+- [ ] Add a top-level app status section with monitoring state, permissions, next action, and current context.
+- [ ] Make the main screen less form-like with simple mode first and advanced settings below.
+- [ ] Prioritize the OLED theme as the first polished theme because it fits night-time utility use.
+
 ## Task List
 
 ### Now
