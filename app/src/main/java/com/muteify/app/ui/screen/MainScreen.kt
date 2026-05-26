@@ -115,11 +115,16 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
                 style = MaterialTheme.typography.headlineLarge
             )
 
-            Text(
-                text = if (isRunning) "● Monitorowanie aktywne" else "○ Zatrzymane",
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (isRunning) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant
+            AppStatusCard(
+                isRunning = isRunning,
+                blockingPermissionCount = blockingPermissionCount(
+                    hasNotificationPolicyAccess = hasNotificationPolicyAccess,
+                    hasPostNotificationsPermission = hasPostNotificationsPermission,
+                    hasWifiLocationPermission = hasWifiLocationPermission
+                ),
+                nextAction = nextScheduleSummary,
+                currentSsid = currentWifiSsid,
+                currentWifiState = currentWifiState
             )
 
             SoundStatusCard(summary = soundStatusSummary)
@@ -251,6 +256,70 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
             Text(if (isRunning) "Zatrzymaj" else "Zapisz i włącz")
         }
     }
+}
+
+@Composable
+fun AppStatusCard(
+    isRunning: Boolean,
+    blockingPermissionCount: Int,
+    nextAction: String,
+    currentSsid: String?,
+    currentWifiState: TriggerState
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        tonalElevation = 2.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = "Stan aplikacji",
+                style = MaterialTheme.typography.titleMedium
+            )
+            StatusLine(
+                label = "Monitoring",
+                value = if (isRunning) "aktywny" else "zatrzymany",
+                isPositive = isRunning
+            )
+            StatusLine(
+                label = "Uprawnienia",
+                value = if (blockingPermissionCount == 0) {
+                    "działają"
+                } else {
+                    "braki: $blockingPermissionCount"
+                },
+                isPositive = blockingPermissionCount == 0
+            )
+            StatusLine(
+                label = "Następna akcja",
+                value = nextAction
+            )
+            StatusLine(
+                label = "Kontekst",
+                value = "${currentSsid ?: "Sieć nieznana"} · ${triggerStateLabel(currentWifiState.name)}"
+            )
+        }
+    }
+}
+
+@Composable
+private fun StatusLine(
+    label: String,
+    value: String,
+    isPositive: Boolean? = null
+) {
+    Text(
+        text = "$label: $value",
+        style = MaterialTheme.typography.bodySmall,
+        color = when (isPositive) {
+            true -> MaterialTheme.colorScheme.primary
+            false -> MaterialTheme.colorScheme.error
+            null -> MaterialTheme.colorScheme.onSurfaceVariant
+        }
+    )
 }
 
 @Composable
@@ -763,6 +832,18 @@ private fun isWifiLocationPermissionGranted(context: Context): Boolean {
         context,
         Manifest.permission.ACCESS_FINE_LOCATION
     ) == PackageManager.PERMISSION_GRANTED
+}
+
+private fun blockingPermissionCount(
+    hasNotificationPolicyAccess: Boolean,
+    hasPostNotificationsPermission: Boolean,
+    hasWifiLocationPermission: Boolean
+): Int {
+    return listOf(
+        hasNotificationPolicyAccess,
+        hasPostNotificationsPermission,
+        hasWifiLocationPermission
+    ).count { !it }
 }
 
 private fun isLocationEnabled(context: Context): Boolean {
