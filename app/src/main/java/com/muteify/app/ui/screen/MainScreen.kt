@@ -4,6 +4,8 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.location.LocationManager
+import android.net.wifi.WifiManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -18,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.core.location.LocationManagerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -61,6 +64,12 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
     var hasWifiLocationPermission by remember {
         mutableStateOf(isWifiLocationPermissionGranted(context))
     }
+    var isLocationEnabled by remember {
+        mutableStateOf(isLocationEnabled(context))
+    }
+    var isWifiEnabled by remember {
+        mutableStateOf(isWifiEnabled(context))
+    }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -79,6 +88,8 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
                 viewModel.refreshWifiStatus()
                 hasPostNotificationsPermission = isPostNotificationsPermissionGranted(context)
                 hasWifiLocationPermission = isWifiLocationPermissionGranted(context)
+                isLocationEnabled = isLocationEnabled(context)
+                isWifiEnabled = isWifiEnabled(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -141,6 +152,12 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
             WifiStatusCard(
                 currentSsid = currentWifiSsid,
                 state = currentWifiState,
+                warning = wifiSsidWarning(
+                    currentSsid = currentWifiSsid,
+                    hasLocationPermission = hasWifiLocationPermission,
+                    isLocationEnabled = isLocationEnabled,
+                    isWifiEnabled = isWifiEnabled
+                ),
                 enabled = !isRunning,
                 onSetCurrentAsHome = viewModel::setCurrentWifiAsHome
             )
@@ -240,6 +257,7 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
 fun WifiStatusCard(
     currentSsid: String?,
     state: TriggerState,
+    warning: String?,
     enabled: Boolean,
     onSetCurrentAsHome: () -> Unit
 ) {
@@ -269,6 +287,13 @@ fun WifiStatusCard(
                     TriggerState.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
                 }
             )
+            if (warning != null) {
+                Text(
+                    text = warning,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
             OutlinedButton(
                 onClick = onSetCurrentAsHome,
                 enabled = enabled && currentSsid != null
@@ -738,6 +763,36 @@ private fun isWifiLocationPermissionGranted(context: Context): Boolean {
         context,
         Manifest.permission.ACCESS_FINE_LOCATION
     ) == PackageManager.PERMISSION_GRANTED
+}
+
+private fun isLocationEnabled(context: Context): Boolean {
+    val locationManager = context.getSystemService(LocationManager::class.java)
+    return LocationManagerCompat.isLocationEnabled(locationManager)
+}
+
+private fun isWifiEnabled(context: Context): Boolean {
+    val wifiManager =
+        context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+    return wifiManager.isWifiEnabled
+}
+
+private fun wifiSsidWarning(
+    currentSsid: String?,
+    hasLocationPermission: Boolean,
+    isLocationEnabled: Boolean,
+    isWifiEnabled: Boolean
+): String? {
+    if (currentSsid != null) return null
+    return when {
+        !hasLocationPermission ->
+            "SSID niedostępny: brakuje uprawnienia lokalizacji."
+        !isLocationEnabled ->
+            "SSID niedostępny: lokalizacja systemowa jest wyłączona."
+        !isWifiEnabled ->
+            "SSID niedostępny: Wi-Fi jest wyłączone."
+        else ->
+            "SSID niedostępny: Android nie zwrócił nazwy bieżącej sieci."
+    }
 }
 
 private fun shareHistoryCsv(context: Context, events: List<RuleHistoryEntity>) {
