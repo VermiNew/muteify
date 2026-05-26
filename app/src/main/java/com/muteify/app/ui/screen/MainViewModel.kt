@@ -10,12 +10,14 @@ import com.muteify.app.data.model.RuleHistoryEntity
 import com.muteify.app.data.model.RuleEntity
 import com.muteify.app.data.model.SchedulePolicy
 import com.muteify.app.data.model.SoundAction
+import com.muteify.app.data.model.TriggerState
 import com.muteify.app.data.repository.AppDatabase
 import com.muteify.app.data.repository.RuleHistoryRepository
 import com.muteify.app.data.repository.ScheduleSettings
 import com.muteify.app.data.repository.ScheduleSlotSettings
 import com.muteify.app.data.repository.SettingsRepository
 import com.muteify.app.engine.AudioController
+import com.muteify.app.monitor.WifiPresenceChecker
 import com.muteify.app.schedule.ScheduleAlarmScheduler
 import com.muteify.app.service.MuteifyService
 import kotlinx.coroutines.flow.collectLatest
@@ -39,6 +41,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val settingsRepository = SettingsRepository(application)
     private val scheduleAlarmScheduler = ScheduleAlarmScheduler(application)
     private val audioController = AudioController(application)
+    private val wifiPresenceChecker = WifiPresenceChecker(application)
     private var currentScheduleSettings = ScheduleSettings()
 
     private val _ssid = MutableStateFlow("")
@@ -98,15 +101,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _recentHistoryEvents = MutableStateFlow<List<RuleHistoryEntity>>(emptyList())
     val recentHistoryEvents: StateFlow<List<RuleHistoryEntity>> = _recentHistoryEvents
 
+    private val _currentWifiSsid = MutableStateFlow<String?>(null)
+    val currentWifiSsid: StateFlow<String?> = _currentWifiSsid
+
+    private val _currentWifiState = MutableStateFlow(TriggerState.UNKNOWN)
+    val currentWifiState: StateFlow<TriggerState> = _currentWifiState
+
     init {
         refreshPermissionStatus()
         refreshSoundStatus()
+        refreshWifiStatus()
         observeSavedHomeRule()
         observeScheduleSettings()
         observeRecentHistoryEvents()
     }
 
-    fun onSsidChanged(value: String) { _ssid.value = value }
+    fun onSsidChanged(value: String) {
+        _ssid.value = value
+        refreshWifiStatus()
+    }
     fun onActionEnterChanged(value: SoundAction) { _actionEnter.value = value }
     fun onActionLeaveChanged(value: SoundAction) { _actionLeave.value = value }
     fun onMorningTimeChanged(value: String) {
@@ -161,6 +174,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             getApplication<Application>().getSystemService(NotificationManager::class.java)
         _hasNotificationPolicyAccess.value = notificationManager.isNotificationPolicyAccessGranted
         refreshSoundStatus()
+        refreshWifiStatus()
+    }
+
+    fun refreshWifiStatus() {
+        val currentSsid = wifiPresenceChecker.currentSsid()
+        _currentWifiSsid.value = currentSsid
+        _currentWifiState.value = when {
+            currentSsid == null || _ssid.value.isBlank() -> TriggerState.UNKNOWN
+            currentSsid == _ssid.value -> TriggerState.HOME
+            else -> TriggerState.AWAY
+        }
     }
 
     fun openNotificationPolicySettings() {
@@ -202,6 +226,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _ssid.value = homeRule.wifiSsid
                 _actionEnter.value = homeRule.actionEnter.toSoundActionOr(SoundAction.UNSILENCE)
                 _actionLeave.value = homeRule.actionLeave.toSoundActionOr(SoundAction.SILENCE)
+                refreshWifiStatus()
             }
         }
     }

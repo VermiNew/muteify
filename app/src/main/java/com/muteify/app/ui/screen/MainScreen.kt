@@ -25,6 +25,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.muteify.app.data.model.RuleHistoryEntity
 import com.muteify.app.data.model.SchedulePolicy
 import com.muteify.app.data.model.SoundAction
+import com.muteify.app.data.model.TriggerState
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -50,6 +51,8 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
     val nextScheduleSummary by viewModel.nextScheduleSummary.collectAsState()
     val soundStatusSummary by viewModel.soundStatusSummary.collectAsState()
     val recentHistoryEvents by viewModel.recentHistoryEvents.collectAsState()
+    val currentWifiSsid by viewModel.currentWifiSsid.collectAsState()
+    val currentWifiState by viewModel.currentWifiState.collectAsState()
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var hasPostNotificationsPermission by remember {
@@ -73,6 +76,7 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 viewModel.refreshPermissionStatus()
+                viewModel.refreshWifiStatus()
                 hasPostNotificationsPermission = isPostNotificationsPermissionGranted(context)
                 hasWifiLocationPermission = isWifiLocationPermissionGranted(context)
             }
@@ -132,6 +136,11 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
                 neverAutoUnmute = neverAutoUnmute,
                 enabled = !isRunning,
                 onNeverAutoUnmuteChanged = viewModel::onNeverAutoUnmuteChanged
+            )
+
+            WifiStatusCard(
+                currentSsid = currentWifiSsid,
+                state = currentWifiState
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -221,6 +230,41 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
             enabled = isRunning || ssid.isNotBlank()
         ) {
             Text(if (isRunning) "Zatrzymaj" else "Zapisz i włącz")
+        }
+    }
+}
+
+@Composable
+fun WifiStatusCard(
+    currentSsid: String?,
+    state: TriggerState
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        tonalElevation = 2.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "Wi-Fi",
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = "Aktualna sieć: ${currentSsid ?: "Nieznana"}",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                text = "Stan: ${triggerStateLabel(state.name)}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = when (state) {
+                    TriggerState.HOME -> MaterialTheme.colorScheme.primary
+                    TriggerState.AWAY -> MaterialTheme.colorScheme.onSurface
+                    TriggerState.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
+                }
+            )
         }
     }
 }

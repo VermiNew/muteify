@@ -197,7 +197,7 @@ Theme selection should be stored persistently.
 ### Wi-Fi and Home
 
 - [ ] Add a button to set the current Wi-Fi network as Home instead of typing the SSID manually.
-- [ ] Show the currently detected Wi-Fi network and state: Home, Away, Unknown.
+- [x] Show the currently detected Wi-Fi network and state: Home, Away, Unknown.
 - [ ] Warn when SSID is unavailable because location permission is missing, location is disabled, or Wi-Fi is off.
 
 ### UI
