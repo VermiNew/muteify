@@ -2,6 +2,7 @@ package com.muteify.app.ui.screen
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -310,6 +311,7 @@ fun NextScheduleCard(summary: String) {
 fun RecentHistorySection(events: List<RuleHistoryEntity>) {
     var selectedFilter by remember { mutableStateOf(HistoryFilter.ALL) }
     val filteredEvents = events.filter { event -> selectedFilter.matches(event) }
+    val context = LocalContext.current
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -328,6 +330,12 @@ fun RecentHistorySection(events: List<RuleHistoryEntity>) {
                 selectedFilter = selectedFilter,
                 onFilterSelected = { selectedFilter = it }
             )
+            OutlinedButton(
+                onClick = { shareHistoryCsv(context, events) },
+                enabled = events.isNotEmpty()
+            ) {
+                Text("Eksportuj CSV")
+            }
             if (filteredEvents.isEmpty()) {
                 Text(
                     text = if (events.isEmpty()) "Brak zdarzeń" else "Brak zdarzeń dla filtra",
@@ -617,6 +625,44 @@ private fun isWifiLocationPermissionGranted(context: Context): Boolean {
         context,
         Manifest.permission.ACCESS_FINE_LOCATION
     ) == PackageManager.PERMISSION_GRANTED
+}
+
+private fun shareHistoryCsv(context: Context, events: List<RuleHistoryEntity>) {
+    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/csv"
+        putExtra(Intent.EXTRA_SUBJECT, "Mute-ify historia.csv")
+        putExtra(Intent.EXTRA_TEXT, events.toHistoryCsv())
+    }
+    context.startActivity(Intent.createChooser(shareIntent, "Eksportuj historię"))
+}
+
+private fun List<RuleHistoryEntity>.toHistoryCsv(): String {
+    val header = listOf(
+        "time",
+        "source",
+        "trigger_state",
+        "action",
+        "policy",
+        "outcome",
+        "details"
+    ).joinToString(",")
+    val rows = map { event ->
+        listOf(
+            formatHistoryTime(event.occurredAtMillis),
+            sourceLabel(event.source),
+            triggerStateLabel(event.triggerState),
+            actionLabel(event.action),
+            policyLabel(event.policy),
+            outcomeLabel(event.outcome),
+            historyDetailsLabel(event.details)
+        ).joinToString(",") { it.csvEscape() }
+    }
+    return (listOf(header) + rows).joinToString("\n")
+}
+
+private fun String.csvEscape(): String {
+    val escaped = replace("\"", "\"\"")
+    return "\"$escaped\""
 }
 
 private fun formatHistoryTime(occurredAtMillis: Long): String {

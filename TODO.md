@@ -185,7 +185,7 @@ Theme selection should be stored persistently.
 - [x] Add history filters: Schedule, Wi-Fi, Cancelled, Executed.
 - [x] Show readable history details: trigger, context, decision, and reason for skipped actions.
 - [x] Add a compact latest-decision log with the last 1-3 events near the top of the main screen.
-- [ ] Add history export to text or CSV for debugging.
+- [x] Add history export to text or CSV for debugging.
 
 ### Behavior Controls
 
