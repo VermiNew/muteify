@@ -369,22 +369,39 @@ private fun HistoryFilterRow(
 
 @Composable
 fun HistoryEventRow(event: RuleHistoryEntity) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
             text = "${formatHistoryTime(event.occurredAtMillis)} · ${sourceLabel(event.source)}",
             style = MaterialTheme.typography.bodyMedium
         )
-        Text(
-            text = "${outcomeLabel(event.outcome)} · ${actionLabel(event.action)}",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+        HistoryDetailLine(
+            label = "Trigger",
+            value = sourceLabel(event.source)
         )
-        Text(
-            text = "Stan: ${triggerStateLabel(event.triggerState)} · Zasada: ${policyLabel(event.policy)}",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+        HistoryDetailLine(
+            label = "Kontekst",
+            value = "Stan: ${triggerStateLabel(event.triggerState)} · Zasada: ${policyLabel(event.policy)}"
         )
+        HistoryDetailLine(
+            label = "Decyzja",
+            value = "${outcomeLabel(event.outcome)} · ${actionLabel(event.action)}"
+        )
+        if (event.details.isNotBlank()) {
+            HistoryDetailLine(
+                label = if (event.outcome.startsWith("skipped")) "Powód" else "Szczegóły",
+                value = historyDetailsLabel(event.details)
+            )
+        }
     }
+}
+
+@Composable
+private fun HistoryDetailLine(label: String, value: String) {
+    Text(
+        text = "$label: $value",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
 }
 
 @Composable
@@ -645,6 +662,22 @@ private fun outcomeLabel(outcome: String): String {
         "skipped_missing_notification_policy_access" -> "Pominięto: brak dostępu"
         "skipped_policy_changed" -> "Pominięto: zmiana zasad"
         else -> outcome
+    }
+}
+
+private fun historyDetailsLabel(details: String): String {
+    return when (details) {
+        "Schedule slot is disabled" -> "Slot harmonogramu jest wyłączony."
+        "Schedule trigger handled" -> "Obsłużono zdarzenie harmonogramu."
+        "Pending schedule action was skipped because the slot is disabled" ->
+            "Pominięto, bo slot harmonogramu jest wyłączony."
+        "Schedule action was skipped because notification policy access is missing" ->
+            "Pominięto, bo brakuje dostępu do trybu Nie przeszkadzać."
+        "Schedule action applied" -> "Akcja harmonogramu została wykonana."
+        "Pending schedule action was skipped because policy changed" ->
+            "Pominięto, bo zasady zmieniły się po utworzeniu monitu."
+        "Pending schedule action was cancelled" -> "Użytkownik anulował oczekującą akcję."
+        else -> details
     }
 }
 
