@@ -48,6 +48,7 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
                 scheduler,
                 notifier,
                 historyRepository,
+                settings.neverAutoUnmute,
                 outcome = "confirmed"
             )
             ACTION_RUN_PENDING -> runAutomaticPendingAction(
@@ -56,14 +57,16 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
                 slotSettings,
                 scheduler,
                 notifier,
-                historyRepository
+                historyRepository,
+                settings.neverAutoUnmute
             )
             ACTION_DISMISS -> dismissPendingAction(
                 slot,
                 slotSettings,
                 scheduler,
                 notifier,
-                historyRepository
+                historyRepository,
+                settings.neverAutoUnmute
             )
             else -> handleScheduleTrigger(
                 context,
@@ -94,7 +97,7 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
                 historyRepository = historyRepository,
                 slot = slot,
                 settings = slotSettings,
-                policy = slotSettings.effectivePolicy(),
+                policy = slotSettings.effectivePolicy(settings.neverAutoUnmute),
                 homeState = null,
                 outcome = "skipped_disabled",
                 details = "Schedule slot is disabled"
@@ -102,7 +105,7 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
             return
         }
 
-        val policy = slotSettings.effectivePolicy()
+        val policy = slotSettings.effectivePolicy(settings.neverAutoUnmute)
         val homeState = resolveHomeState(context, slotSettings)
         notifier.show(slot, slotSettings, policy, homeState)
         if (policy == SchedulePolicy.AUTO_AFTER_COUNTDOWN) {
@@ -128,6 +131,7 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
         scheduler: ScheduleAlarmScheduler,
         notifier: SchedulePromptNotifier,
         historyRepository: RuleHistoryRepository,
+        neverAutoUnmute: Boolean,
         outcome: String
     ) {
         dismissPendingAction(slot, scheduler, notifier)
@@ -136,7 +140,7 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
                 historyRepository = historyRepository,
                 slot = slot,
                 settings = settings,
-                policy = settings.effectivePolicy(),
+                policy = settings.effectivePolicy(neverAutoUnmute),
                 homeState = null,
                 outcome = "skipped_disabled",
                 details = "Pending schedule action was skipped because the slot is disabled"
@@ -149,7 +153,7 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
                 historyRepository = historyRepository,
                 slot = slot,
                 settings = settings,
-                policy = settings.effectivePolicy(),
+                policy = settings.effectivePolicy(neverAutoUnmute),
                 homeState = null,
                 outcome = "skipped_missing_notification_policy_access",
                 details = "Schedule action was skipped because notification policy access is missing"
@@ -161,7 +165,7 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
             historyRepository = historyRepository,
             slot = slot,
             settings = settings,
-            policy = settings.effectivePolicy(),
+            policy = settings.effectivePolicy(neverAutoUnmute),
             homeState = null,
             outcome = outcome,
             details = "Schedule action applied"
@@ -174,15 +178,16 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
         settings: ScheduleSlotSettings,
         scheduler: ScheduleAlarmScheduler,
         notifier: SchedulePromptNotifier,
-        historyRepository: RuleHistoryRepository
+        historyRepository: RuleHistoryRepository,
+        neverAutoUnmute: Boolean
     ) {
-        if (settings.effectivePolicy() != SchedulePolicy.AUTO_AFTER_COUNTDOWN) {
+        if (settings.effectivePolicy(neverAutoUnmute) != SchedulePolicy.AUTO_AFTER_COUNTDOWN) {
             dismissPendingAction(slot, scheduler, notifier)
             recordScheduleEvent(
                 historyRepository = historyRepository,
                 slot = slot,
                 settings = settings,
-                policy = settings.effectivePolicy(),
+                policy = settings.effectivePolicy(neverAutoUnmute),
                 homeState = null,
                 outcome = "skipped_policy_changed",
                 details = "Pending schedule action was skipped because policy changed"
@@ -196,6 +201,7 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
             scheduler,
             notifier,
             historyRepository,
+            neverAutoUnmute,
             outcome = "auto_executed"
         )
     }
@@ -205,14 +211,15 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
         settings: ScheduleSlotSettings,
         scheduler: ScheduleAlarmScheduler,
         notifier: SchedulePromptNotifier,
-        historyRepository: RuleHistoryRepository
+        historyRepository: RuleHistoryRepository,
+        neverAutoUnmute: Boolean
     ) {
         dismissPendingAction(slot, scheduler, notifier)
         recordScheduleEvent(
             historyRepository = historyRepository,
             slot = slot,
             settings = settings,
-            policy = settings.effectivePolicy(),
+            policy = settings.effectivePolicy(neverAutoUnmute),
             homeState = null,
             outcome = "dismissed",
             details = "Pending schedule action was cancelled"
@@ -273,8 +280,12 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun ScheduleSlotSettings.effectivePolicy(): SchedulePolicy {
-        return if (action == SoundAction.UNSILENCE && policy == SchedulePolicy.AUTO_AFTER_COUNTDOWN) {
+    private fun ScheduleSlotSettings.effectivePolicy(neverAutoUnmute: Boolean): SchedulePolicy {
+        return if (
+            neverAutoUnmute &&
+            action == SoundAction.UNSILENCE &&
+            policy == SchedulePolicy.AUTO_AFTER_COUNTDOWN
+        ) {
             SchedulePolicy.REQUIRE_CONFIRMATION
         } else {
             policy

@@ -80,6 +80,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _eveningCountdownSeconds = MutableStateFlow(30)
     val eveningCountdownSeconds: StateFlow<Int> = _eveningCountdownSeconds
 
+    private val _neverAutoUnmute = MutableStateFlow(true)
+    val neverAutoUnmute: StateFlow<Boolean> = _neverAutoUnmute
+
     private val _isRunning = MutableStateFlow(false)
     val isRunning: StateFlow<Boolean> = _isRunning
 
@@ -146,6 +149,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _eveningCountdownSeconds.value = value.toCountdownSeconds()
         saveEveningScheduleSettings()
     }
+    fun onNeverAutoUnmuteChanged(value: Boolean) {
+        _neverAutoUnmute.value = value
+        viewModelScope.launch {
+            settingsRepository.saveNeverAutoUnmute(value)
+        }
+    }
 
     fun refreshPermissionStatus() {
         val notificationManager =
@@ -177,6 +186,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 putExtra(MuteifyService.EXTRA_SSID, _ssid.value)
                 putExtra(MuteifyService.EXTRA_ACTION_ENTER, _actionEnter.value.name)
                 putExtra(MuteifyService.EXTRA_ACTION_LEAVE, _actionLeave.value.name)
+                putExtra(MuteifyService.EXTRA_NEVER_AUTO_UNMUTE, _neverAutoUnmute.value)
             }
             context.startService(intent)
             _isRunning.value = true
@@ -224,6 +234,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _eveningScheduleAction.value = settings.evening.action
                 _eveningSchedulePolicy.value = settings.evening.policy
                 _eveningCountdownSeconds.value = settings.evening.countdownSeconds
+                _neverAutoUnmute.value = settings.neverAutoUnmute
                 _nextScheduleSummary.value = settings.toNextScheduleSummary()
             }
         }
@@ -319,7 +330,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             "jutro"
         }
         val timeLabel = nextSlot.dateTime.format(SCHEDULE_TIME_FORMATTER)
-        return "Następne: $dayLabel $timeLabel, ${nextSlot.settings.actionSummary()} ${nextSlot.settings.policySummary()}"
+        return "Następne: $dayLabel $timeLabel, " +
+            "${nextSlot.settings.actionSummary()} ${nextSlot.settings.policySummary(neverAutoUnmute)}"
     }
 
     private fun String.toLocalTimeOrNull(): LocalTime? {
@@ -335,8 +347,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun ScheduleSlotSettings.policySummary(): String {
+    private fun ScheduleSlotSettings.policySummary(neverAutoUnmute: Boolean): String {
         val effectivePolicy = if (
+            neverAutoUnmute &&
             action == SoundAction.UNSILENCE &&
             policy == SchedulePolicy.AUTO_AFTER_COUNTDOWN
         ) {

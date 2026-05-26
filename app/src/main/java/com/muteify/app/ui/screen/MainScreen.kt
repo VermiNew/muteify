@@ -44,6 +44,7 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
     val eveningScheduleAction by viewModel.eveningScheduleAction.collectAsState()
     val eveningSchedulePolicy by viewModel.eveningSchedulePolicy.collectAsState()
     val eveningCountdownSeconds by viewModel.eveningCountdownSeconds.collectAsState()
+    val neverAutoUnmute by viewModel.neverAutoUnmute.collectAsState()
     val isRunning by viewModel.isRunning.collectAsState()
     val hasNotificationPolicyAccess by viewModel.hasNotificationPolicyAccess.collectAsState()
     val nextScheduleSummary by viewModel.nextScheduleSummary.collectAsState()
@@ -125,6 +126,12 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
                 onRequestWifiLocationPermission = {
                     wifiLocationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
                 }
+            )
+
+            SafetyRulesCard(
+                neverAutoUnmute = neverAutoUnmute,
+                enabled = !isRunning,
+                onNeverAutoUnmuteChanged = viewModel::onNeverAutoUnmuteChanged
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -214,6 +221,58 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
             enabled = isRunning || ssid.isNotBlank()
         ) {
             Text(if (isRunning) "Zatrzymaj" else "Zapisz i włącz")
+        }
+    }
+}
+
+@Composable
+fun SafetyRulesCard(
+    neverAutoUnmute: Boolean,
+    enabled: Boolean,
+    onNeverAutoUnmuteChanged: (Boolean) -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        tonalElevation = 2.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(
+                        text = "Zasady bezpieczeństwa",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Text(
+                        text = "Nigdy nie odciszaj automatycznie",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = if (neverAutoUnmute) {
+                            "Odciszenie wymaga potwierdzenia."
+                        } else {
+                            "Odciszenie może wykonać się po odliczaniu."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = neverAutoUnmute,
+                    onCheckedChange = onNeverAutoUnmuteChanged,
+                    enabled = enabled
+                )
+            }
         }
     }
 }

@@ -25,6 +25,7 @@ class MuteifyService : Service() {
         const val EXTRA_SSID = "extra_ssid"
         const val EXTRA_ACTION_ENTER = "extra_action_enter"
         const val EXTRA_ACTION_LEAVE = "extra_action_leave"
+        const val EXTRA_NEVER_AUTO_UNMUTE = "extra_never_auto_unmute"
         const val ACTION_CONFIRM = "action_confirm"
         const val ACTION_DISMISS = "action_dismiss"
     }
@@ -42,7 +43,7 @@ class MuteifyService : Service() {
             showPendingActionNotification(action)
         }
         ruleEngine.onActionPending = { action ->
-            if (action.canRunAutomatically()) {
+            if (action.canRunAutomatically(ruleEngine.neverAutoUnmute)) {
                 audioController.apply(action)
             }
             clearPendingActionNotification()
@@ -66,7 +67,8 @@ class MuteifyService : Service() {
                     ?.let { SoundAction.valueOf(it) } ?: SoundAction.UNSILENCE
                 val leave = intent.getStringExtra(EXTRA_ACTION_LEAVE)
                     ?.let { SoundAction.valueOf(it) } ?: SoundAction.SILENCE
-                ruleEngine.start(ssid, enter, leave)
+                val neverAutoUnmute = intent.getBooleanExtra(EXTRA_NEVER_AUTO_UNMUTE, true)
+                ruleEngine.start(ssid, enter, leave, neverAutoUnmute)
             }
         }
         return START_STICKY
@@ -115,7 +117,7 @@ class MuteifyService : Service() {
             SoundAction.VIBRATE -> "Wibracje"
             SoundAction.DO_NOTHING -> "Bez zmian"
         }
-        val promptText = if (action.canRunAutomatically()) {
+        val promptText = if (action.canRunAutomatically(ruleEngine.neverAutoUnmute)) {
             "Za 30 sekund: $actionLabel"
         } else {
             "Potwierdź: $actionLabel"
@@ -154,7 +156,8 @@ class MuteifyService : Service() {
         )
     }
 
-    private fun SoundAction.canRunAutomatically(): Boolean {
-        return this != SoundAction.UNSILENCE && this != SoundAction.DO_NOTHING
+    private fun SoundAction.canRunAutomatically(neverAutoUnmute: Boolean): Boolean {
+        return this != SoundAction.DO_NOTHING &&
+            !(neverAutoUnmute && this == SoundAction.UNSILENCE)
     }
 }

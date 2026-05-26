@@ -34,11 +34,14 @@ class RuleEngine(
     private var targetSsid: String = ""
     private var actionEnter: SoundAction = SoundAction.UNSILENCE
     private var actionLeave: SoundAction = SoundAction.SILENCE
+    var neverAutoUnmute: Boolean = true
+        private set
 
-    fun start(ssid: String, enter: SoundAction, leave: SoundAction) {
+    fun start(ssid: String, enter: SoundAction, leave: SoundAction, neverAutoUnmute: Boolean) {
         targetSsid = ssid
         actionEnter = enter
         actionLeave = leave
+        this.neverAutoUnmute = neverAutoUnmute
         wifiMonitor.start(ssid)
         monitorJob = scope.launch {
             var lastState: TriggerState? = null

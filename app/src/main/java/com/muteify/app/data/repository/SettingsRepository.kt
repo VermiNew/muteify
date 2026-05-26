@@ -17,7 +17,8 @@ private const val DEFAULT_COUNTDOWN_SECONDS = 30
 
 data class ScheduleSettings(
     val morning: ScheduleSlotSettings = ScheduleSlotSettings.morningDefault(),
-    val evening: ScheduleSlotSettings = ScheduleSlotSettings.eveningDefault()
+    val evening: ScheduleSlotSettings = ScheduleSlotSettings.eveningDefault(),
+    val neverAutoUnmute: Boolean = true
 ) {
     val morningTime: String get() = morning.time
     val nightTime: String get() = evening.time
@@ -72,7 +73,8 @@ class SettingsRepository(context: Context) {
                 policy = preferences[EVENING_POLICY_KEY].toSchedulePolicyOr(eveningDefault.policy),
                 countdownSeconds = preferences[EVENING_COUNTDOWN_SECONDS_KEY]
                     ?: eveningDefault.countdownSeconds
-            )
+            ),
+            neverAutoUnmute = preferences[NEVER_AUTO_UNMUTE_KEY] ?: true
         )
     }
 
@@ -107,6 +109,12 @@ class SettingsRepository(context: Context) {
         }
     }
 
+    suspend fun saveNeverAutoUnmute(value: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[NEVER_AUTO_UNMUTE_KEY] = value
+        }
+    }
+
     private fun String?.toSoundActionOr(default: SoundAction): SoundAction {
         return this?.let { runCatching { SoundAction.valueOf(it) }.getOrNull() } ?: default
     }
@@ -127,5 +135,7 @@ class SettingsRepository(context: Context) {
         val EVENING_ACTION_KEY = stringPreferencesKey("evening_action")
         val EVENING_POLICY_KEY = stringPreferencesKey("evening_policy")
         val EVENING_COUNTDOWN_SECONDS_KEY = intPreferencesKey("evening_countdown_seconds")
+
+        val NEVER_AUTO_UNMUTE_KEY = booleanPreferencesKey("never_auto_unmute")
     }
 }
