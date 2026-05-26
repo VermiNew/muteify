@@ -353,23 +353,50 @@ fun PermissionStatusCard(
     onRequestNotificationPermission: () -> Unit,
     onRequestWifiLocationPermission: () -> Unit
 ) {
-    val policyStatusText = if (hasNotificationPolicyAccess) "Przyznany" else "Brak"
-    val notificationStatusText = if (hasPostNotificationsPermission) "Przyznane" else "Brak"
-    val wifiLocationStatusText = if (hasWifiLocationPermission) "Przyznana" else "Brak"
-    val policyStatusColor = if (hasNotificationPolicyAccess) {
-        MaterialTheme.colorScheme.primary
+    val diagnostics = listOf(
+        PermissionDiagnostic(
+            title = "Zmiana trybu dzwonka",
+            status = if (hasNotificationPolicyAccess) "Działa" else "Blokuje automatyzację",
+            details = if (hasNotificationPolicyAccess) {
+                "Aplikacja może wykonać wyciszenie, wibracje i odciszenie po potwierdzeniu."
+            } else {
+                "Bez dostępu do trybu Nie przeszkadzać aplikacja nie zmieni trybu dzwonka."
+            },
+            isBlocking = !hasNotificationPolicyAccess
+        ),
+        PermissionDiagnostic(
+            title = "Monity i odliczanie",
+            status = if (hasPostNotificationsPermission) "Działa" else "Blokuje widoczne monity",
+            details = if (hasPostNotificationsPermission) {
+                "Aplikacja może pokazywać monity z akcją wykonania lub anulowania."
+            } else {
+                "Bez powiadomień użytkownik może nie zobaczyć prośby o decyzję."
+            },
+            isBlocking = !hasPostNotificationsPermission
+        ),
+        PermissionDiagnostic(
+            title = "Rozpoznawanie sieci domowej",
+            status = if (hasWifiLocationPermission) "Działa" else "Blokuje wykrywanie Wi-Fi",
+            details = if (hasWifiLocationPermission) {
+                "Aplikacja może odczytać SSID i rozpoznać sieć Dom."
+            } else {
+                "Android wymaga lokalizacji, żeby aplikacja mogła odczytać nazwę Wi-Fi."
+            },
+            isBlocking = !hasWifiLocationPermission
+        ),
+        PermissionDiagnostic(
+            title = "Dokładne alarmy",
+            status = "Opcjonalne teraz",
+            details = "Bez nich harmonogram może być mniej punktualny, ale aplikacja nadal działa z alarmami systemowymi.",
+            isBlocking = false,
+            isOptional = true
+        )
+    )
+    val blockingCount = diagnostics.count { it.isBlocking }
+    val summaryText = if (blockingCount == 0) {
+        "Wszystkie wymagane elementy działają."
     } else {
-        MaterialTheme.colorScheme.error
-    }
-    val notificationStatusColor = if (hasPostNotificationsPermission) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.error
-    }
-    val wifiLocationStatusColor = if (hasWifiLocationPermission) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.error
+        "Do działania brakuje: $blockingCount"
     }
 
     Surface(
@@ -386,23 +413,20 @@ fun PermissionStatusCard(
                 style = MaterialTheme.typography.titleMedium
             )
             Text(
-                text = "Dostęp do trybu Nie przeszkadzać: $policyStatusText",
+                text = summaryText,
                 style = MaterialTheme.typography.bodyMedium,
-                color = policyStatusColor
+                color = if (blockingCount == 0) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.error
+                }
             )
-            Text(
-                text = "Powiadomienia: $notificationStatusText",
-                style = MaterialTheme.typography.bodyMedium,
-                color = notificationStatusColor
-            )
-            Text(
-                text = "Lokalizacja dla Wi-Fi: $wifiLocationStatusText",
-                style = MaterialTheme.typography.bodyMedium,
-                color = wifiLocationStatusColor
-            )
+            diagnostics.forEach { diagnostic ->
+                PermissionDiagnosticRow(diagnostic = diagnostic)
+            }
             if (!hasNotificationPolicyAccess) {
                 TextButton(onClick = onOpenSettings) {
-                    Text("Otwórz ustawienia")
+                    Text("Otwórz dostęp do trybu")
                 }
             }
             if (!hasPostNotificationsPermission) {
@@ -418,6 +442,34 @@ fun PermissionStatusCard(
         }
     }
 }
+
+@Composable
+private fun PermissionDiagnosticRow(diagnostic: PermissionDiagnostic) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            text = "${diagnostic.title}: ${diagnostic.status}",
+            style = MaterialTheme.typography.bodyMedium,
+            color = when {
+                diagnostic.isBlocking -> MaterialTheme.colorScheme.error
+                diagnostic.isOptional -> MaterialTheme.colorScheme.onSurfaceVariant
+                else -> MaterialTheme.colorScheme.primary
+            }
+        )
+        Text(
+            text = diagnostic.details,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+private data class PermissionDiagnostic(
+    val title: String,
+    val status: String,
+    val details: String,
+    val isBlocking: Boolean,
+    val isOptional: Boolean = false
+)
 
 private fun isPostNotificationsPermissionGranted(context: Context): Boolean {
     return Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||

@@ -178,7 +178,7 @@ Theme selection should be stored persistently.
 
 - [ ] Show why the phone is currently muted, for example: muted by evening schedule or muted after leaving Home.
 - [x] Show the next scheduled action, for example: next action today at 22:00, mute after 30 seconds.
-- [ ] Improve the permission screen with concrete diagnosis: what works, what blocks automation, and what is optional.
+- [x] Improve the permission screen with concrete diagnosis: what works, what blocks automation, and what is optional.
 
 ### History and Trust
 
