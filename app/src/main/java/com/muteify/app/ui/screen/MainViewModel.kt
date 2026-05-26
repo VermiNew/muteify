@@ -21,12 +21,16 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private companion object {
         const val HOME_RULE_ID = 1L
         const val HOME_RULE_NAME = "Dom"
+        val SCHEDULE_TIME_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
     }
 
     private val ruleDao = AppDatabase.getInstance(application).ruleDao()
@@ -79,6 +83,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _hasNotificationPolicyAccess = MutableStateFlow(false)
     val hasNotificationPolicyAccess: StateFlow<Boolean> = _hasNotificationPolicyAccess
+
+    private val _nextScheduleSummary = MutableStateFlow("Brak aktywnych akcji harmonogramu")
+    val nextScheduleSummary: StateFlow<String> = _nextScheduleSummary
 
     private val _recentHistoryEvents = MutableStateFlow<List<RuleHistoryEntity>>(emptyList())
     val recentHistoryEvents: StateFlow<List<RuleHistoryEntity>> = _recentHistoryEvents
@@ -208,6 +215,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _eveningScheduleAction.value = settings.evening.action
                 _eveningSchedulePolicy.value = settings.evening.policy
                 _eveningCountdownSeconds.value = settings.evening.countdownSeconds
+                _nextScheduleSummary.value = settings.toNextScheduleSummary()
             }
         }
     }
@@ -269,4 +277,65 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             ?.coerceIn(0, 300)
             ?: 0
     }
+
+    private fun ScheduleSettings.toNextScheduleSummary(
+        now: LocalDateTime = LocalDateTime.now()
+    ): String {
+        val nextSlot = listOf(
+            morning,
+            evening
+        )
+            .filter { settings -> settings.enabled }
+            .mapNotNull { settings ->
+                val time = settings.time.toLocalTimeOrNull() ?: return@mapNotNull null
+                val candidate = now.toLocalDate()
+                    .atTime(time)
+                    .let { if (it.isAfter(now)) it else it.plusDays(1) }
+                NextScheduleCandidate(candidate, settings)
+            }
+            .minByOrNull { it.dateTime }
+            ?: return "Brak aktywnych akcji harmonogramu"
+
+        val dayLabel = if (nextSlot.dateTime.toLocalDate() == now.toLocalDate()) {
+            "dziś"
+        } else {
+            "jutro"
+        }
+        val timeLabel = nextSlot.dateTime.format(SCHEDULE_TIME_FORMATTER)
+        return "Następne: $dayLabel $timeLabel, ${nextSlot.settings.actionSummary()} ${nextSlot.settings.policySummary()}"
+    }
+
+    private fun String.toLocalTimeOrNull(): LocalTime? {
+        return runCatching { LocalTime.parse(this, SCHEDULE_TIME_FORMATTER) }.getOrNull()
+    }
+
+    private fun ScheduleSlotSettings.actionSummary(): String {
+        return when (action) {
+            SoundAction.SILENCE -> "wyciszenie"
+            SoundAction.UNSILENCE -> "odciszenie"
+            SoundAction.VIBRATE -> "wibracje"
+            SoundAction.DO_NOTHING -> "bez zmian"
+        }
+    }
+
+    private fun ScheduleSlotSettings.policySummary(): String {
+        val effectivePolicy = if (
+            action == SoundAction.UNSILENCE &&
+            policy == SchedulePolicy.AUTO_AFTER_COUNTDOWN
+        ) {
+            SchedulePolicy.REQUIRE_CONFIRMATION
+        } else {
+            policy
+        }
+        return when (effectivePolicy) {
+            SchedulePolicy.AUTO_AFTER_COUNTDOWN -> "po ${countdownSeconds} s"
+            SchedulePolicy.REQUIRE_CONFIRMATION -> "po potwierdzeniu"
+            SchedulePolicy.NOTIFY_ONLY -> "jako powiadomienie"
+        }
+    }
+
+    private data class NextScheduleCandidate(
+        val dateTime: LocalDateTime,
+        val settings: ScheduleSlotSettings
+    )
 }

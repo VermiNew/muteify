@@ -45,6 +45,7 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
     val eveningCountdownSeconds by viewModel.eveningCountdownSeconds.collectAsState()
     val isRunning by viewModel.isRunning.collectAsState()
     val hasNotificationPolicyAccess by viewModel.hasNotificationPolicyAccess.collectAsState()
+    val nextScheduleSummary by viewModel.nextScheduleSummary.collectAsState()
     val recentHistoryEvents by viewModel.recentHistoryEvents.collectAsState()
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -102,6 +103,8 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
                 color = if (isRunning) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.onSurfaceVariant
             )
+
+            NextScheduleCard(summary = nextScheduleSummary)
 
             PermissionStatusCard(
                 hasNotificationPolicyAccess = hasNotificationPolicyAccess,
@@ -205,6 +208,30 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
             enabled = isRunning || ssid.isNotBlank()
         ) {
             Text(if (isRunning) "Zatrzymaj" else "Zapisz i włącz")
+        }
+    }
+}
+
+@Composable
+fun NextScheduleCard(summary: String) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        tonalElevation = 2.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = "Następna akcja",
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = summary,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
