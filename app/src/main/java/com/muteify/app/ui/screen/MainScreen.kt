@@ -46,6 +46,7 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
     val isRunning by viewModel.isRunning.collectAsState()
     val hasNotificationPolicyAccess by viewModel.hasNotificationPolicyAccess.collectAsState()
     val nextScheduleSummary by viewModel.nextScheduleSummary.collectAsState()
+    val soundStatusSummary by viewModel.soundStatusSummary.collectAsState()
     val recentHistoryEvents by viewModel.recentHistoryEvents.collectAsState()
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -103,6 +104,8 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
                 color = if (isRunning) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.onSurfaceVariant
             )
+
+            SoundStatusCard(summary = soundStatusSummary)
 
             NextScheduleCard(summary = nextScheduleSummary)
 
@@ -208,6 +211,30 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
             enabled = isRunning || ssid.isNotBlank()
         ) {
             Text(if (isRunning) "Zatrzymaj" else "Zapisz i włącz")
+        }
+    }
+}
+
+@Composable
+fun SoundStatusCard(summary: String) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        tonalElevation = 2.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = "Stan dźwięku",
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = summary,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

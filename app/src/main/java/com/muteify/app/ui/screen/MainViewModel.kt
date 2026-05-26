@@ -15,6 +15,7 @@ import com.muteify.app.data.repository.RuleHistoryRepository
 import com.muteify.app.data.repository.ScheduleSettings
 import com.muteify.app.data.repository.ScheduleSlotSettings
 import com.muteify.app.data.repository.SettingsRepository
+import com.muteify.app.engine.AudioController
 import com.muteify.app.schedule.ScheduleAlarmScheduler
 import com.muteify.app.service.MuteifyService
 import kotlinx.coroutines.flow.collectLatest
@@ -37,6 +38,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val ruleHistoryRepository = RuleHistoryRepository(application)
     private val settingsRepository = SettingsRepository(application)
     private val scheduleAlarmScheduler = ScheduleAlarmScheduler(application)
+    private val audioController = AudioController(application)
     private var currentScheduleSettings = ScheduleSettings()
 
     private val _ssid = MutableStateFlow("")
@@ -87,11 +89,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _nextScheduleSummary = MutableStateFlow("Brak aktywnych akcji harmonogramu")
     val nextScheduleSummary: StateFlow<String> = _nextScheduleSummary
 
+    private val _soundStatusSummary = MutableStateFlow("Sprawdzam stan dźwięku")
+    val soundStatusSummary: StateFlow<String> = _soundStatusSummary
+
     private val _recentHistoryEvents = MutableStateFlow<List<RuleHistoryEntity>>(emptyList())
     val recentHistoryEvents: StateFlow<List<RuleHistoryEntity>> = _recentHistoryEvents
 
     init {
         refreshPermissionStatus()
+        refreshSoundStatus()
         observeSavedHomeRule()
         observeScheduleSettings()
         observeRecentHistoryEvents()
@@ -145,6 +151,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val notificationManager =
             getApplication<Application>().getSystemService(NotificationManager::class.java)
         _hasNotificationPolicyAccess.value = notificationManager.isNotificationPolicyAccessGranted
+        refreshSoundStatus()
     }
 
     fun openNotificationPolicySettings() {
@@ -161,6 +168,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             context.stopService(Intent(context, MuteifyService::class.java))
             scheduleAlarmScheduler.cancelAll()
             _isRunning.value = false
+            refreshSoundStatus()
         } else {
             if (_ssid.value.isBlank()) return
             saveHomeRule()
@@ -172,6 +180,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
             context.startService(intent)
             _isRunning.value = true
+            refreshSoundStatus()
         }
     }
 
@@ -224,8 +233,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             ruleHistoryRepository.recentEvents.collectLatest { events ->
                 _recentHistoryEvents.value = events
+                refreshSoundStatus(events)
             }
         }
+    }
+
+    private fun refreshSoundStatus(
+        events: List<RuleHistoryEntity> = _recentHistoryEvents.value
+    ) {
+        val currentAction = audioController.getCurrentAction()
+        _soundStatusSummary.value = currentAction.toSoundStatusSummary(events)
     }
 
     private fun saveScheduleTimes() {
@@ -338,4 +355,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val dateTime: LocalDateTime,
         val settings: ScheduleSlotSettings
     )
+
+    private fun SoundAction.toSoundStatusSummary(events: List<RuleHistoryEntity>): String {
+        if (this == SoundAction.UNSILENCE) return "Dźwięk jest włączony."
+
+        val matchingEvent = events.firstOrNull { event ->
+            event.outcome in setOf("confirmed", "auto_executed") &&
+                event.action == name
+        }
+        val modeLabel = when (this) {
+            SoundAction.SILENCE -> "Telefon jest wyciszony"
+            SoundAction.VIBRATE -> "Telefon jest w trybie wibracji"
+            SoundAction.UNSILENCE -> "Dźwięk jest włączony"
+            SoundAction.DO_NOTHING -> "Tryb dźwięku bez zmian"
+        }
+        return if (matchingEvent == null) {
+            "$modeLabel. Brak zapisanej przyczyny."
+        } else {
+            "$modeLabel przez ${matchingEvent.reasonLabel()}."
+        }
+    }
+
+    private fun RuleHistoryEntity.reasonLabel(): String {
+        return when (source) {
+            "schedule:morning" -> "harmonogram poranny"
+            "schedule:evening" -> "harmonogram wieczorny"
+            else -> source
+        }
+    }
 }
