@@ -109,6 +109,8 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
 
             NextScheduleCard(summary = nextScheduleSummary)
 
+            LatestDecisionCard(events = recentHistoryEvents.take(3))
+
             PermissionStatusCard(
                 hasNotificationPolicyAccess = hasNotificationPolicyAccess,
                 hasPostNotificationsPermission = hasPostNotificationsPermission,
@@ -211,6 +213,47 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
             enabled = isRunning || ssid.isNotBlank()
         ) {
             Text(if (isRunning) "Zatrzymaj" else "Zapisz i włącz")
+        }
+    }
+}
+
+@Composable
+fun LatestDecisionCard(events: List<RuleHistoryEntity>) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        tonalElevation = 2.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "Ostatnie decyzje",
+                style = MaterialTheme.typography.titleMedium
+            )
+            if (events.isEmpty()) {
+                Text(
+                    text = "Brak zapisanych decyzji",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                events.forEachIndexed { index, event ->
+                    if (index > 0) {
+                        HorizontalDivider()
+                    }
+                    Text(
+                        text = "${formatHistoryTime(event.occurredAtMillis)} · ${outcomeLabel(event.outcome)} · ${actionLabel(event.action)}",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = sourceLabel(event.source),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
     }
 }
