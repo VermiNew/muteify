@@ -6,10 +6,12 @@ import android.content.Intent
 import android.provider.Settings
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.muteify.app.data.model.RuleHistoryEntity
 import com.muteify.app.data.model.RuleEntity
 import com.muteify.app.data.model.SchedulePolicy
 import com.muteify.app.data.model.SoundAction
 import com.muteify.app.data.repository.AppDatabase
+import com.muteify.app.data.repository.RuleHistoryRepository
 import com.muteify.app.data.repository.ScheduleSettings
 import com.muteify.app.data.repository.ScheduleSlotSettings
 import com.muteify.app.data.repository.SettingsRepository
@@ -28,6 +30,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private val ruleDao = AppDatabase.getInstance(application).ruleDao()
+    private val ruleHistoryRepository = RuleHistoryRepository(application)
     private val settingsRepository = SettingsRepository(application)
     private val scheduleAlarmScheduler = ScheduleAlarmScheduler(application)
     private var currentScheduleSettings = ScheduleSettings()
@@ -77,10 +80,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _hasNotificationPolicyAccess = MutableStateFlow(false)
     val hasNotificationPolicyAccess: StateFlow<Boolean> = _hasNotificationPolicyAccess
 
+    private val _recentHistoryEvents = MutableStateFlow<List<RuleHistoryEntity>>(emptyList())
+    val recentHistoryEvents: StateFlow<List<RuleHistoryEntity>> = _recentHistoryEvents
+
     init {
         refreshPermissionStatus()
         observeSavedHomeRule()
         observeScheduleSettings()
+        observeRecentHistoryEvents()
     }
 
     fun onSsidChanged(value: String) { _ssid.value = value }
@@ -201,6 +208,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _eveningScheduleAction.value = settings.evening.action
                 _eveningSchedulePolicy.value = settings.evening.policy
                 _eveningCountdownSeconds.value = settings.evening.countdownSeconds
+            }
+        }
+    }
+
+    private fun observeRecentHistoryEvents() {
+        viewModelScope.launch {
+            ruleHistoryRepository.recentEvents.collectLatest { events ->
+                _recentHistoryEvents.value = events
             }
         }
     }

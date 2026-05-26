@@ -196,7 +196,7 @@ Theme selection should be stored persistently.
 - [x] Store settings with DataStore.
 - [x] Store rule history with Room.
 - [x] Restore saved Home rule after app/process recreation.
-- [ ] Add recent event history.
+- [x] Add recent event history.
 
 ### Later
 
@@ -249,6 +249,6 @@ Theme selection should be stored persistently.
 
 - Wi-Fi monitoring no longer uses a persistent foreground notification; long-term recovery after process death still needs design.
 - Runtime permission copy is still minimal and should be improved.
-- Rule history is stored in Room, but recent history UI is not implemented yet.
+- Recent rule history is shown in the main UI.
 - Time rule alarms are implemented; exact-alarm permission and fallback behavior still need product handling.
 - Existing tests are placeholder tests only.

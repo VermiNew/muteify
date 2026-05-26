@@ -21,8 +21,12 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.muteify.app.data.model.RuleHistoryEntity
 import com.muteify.app.data.model.SchedulePolicy
 import com.muteify.app.data.model.SoundAction
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 @Composable
 fun MainScreen(viewModel: MainViewModel = viewModel()) {
@@ -41,6 +45,7 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
     val eveningCountdownSeconds by viewModel.eveningCountdownSeconds.collectAsState()
     val isRunning by viewModel.isRunning.collectAsState()
     val hasNotificationPolicyAccess by viewModel.hasNotificationPolicyAccess.collectAsState()
+    val recentHistoryEvents by viewModel.recentHistoryEvents.collectAsState()
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var hasPostNotificationsPermission by remember {
@@ -190,6 +195,8 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
                 onPolicyChanged = viewModel::onEveningSchedulePolicyChanged,
                 onCountdownSecondsChanged = viewModel::onEveningCountdownSecondsChanged
             )
+
+            RecentHistorySection(events = recentHistoryEvents)
         }
 
         Button(
@@ -199,6 +206,59 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
         ) {
             Text(if (isRunning) "Zatrzymaj" else "Zapisz i włącz")
         }
+    }
+}
+
+@Composable
+fun RecentHistorySection(events: List<RuleHistoryEntity>) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        tonalElevation = 2.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "Ostatnie zdarzenia",
+                style = MaterialTheme.typography.titleMedium
+            )
+            if (events.isEmpty()) {
+                Text(
+                    text = "Brak zdarzeń",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                events.forEachIndexed { index, event ->
+                    if (index > 0) {
+                        HorizontalDivider()
+                    }
+                    HistoryEventRow(event = event)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun HistoryEventRow(event: RuleHistoryEntity) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            text = "${formatHistoryTime(event.occurredAtMillis)} · ${sourceLabel(event.source)}",
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Text(
+            text = "${outcomeLabel(event.outcome)} · ${actionLabel(event.action)}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = "Stan: ${triggerStateLabel(event.triggerState)} · Zasada: ${policyLabel(event.policy)}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -345,6 +405,62 @@ private fun isWifiLocationPermissionGranted(context: Context): Boolean {
         context,
         Manifest.permission.ACCESS_FINE_LOCATION
     ) == PackageManager.PERMISSION_GRANTED
+}
+
+private fun formatHistoryTime(occurredAtMillis: Long): String {
+    return Instant.ofEpochMilli(occurredAtMillis)
+        .atZone(ZoneId.systemDefault())
+        .format(DateTimeFormatter.ofPattern("HH:mm"))
+}
+
+private fun sourceLabel(source: String): String {
+    return when (source) {
+        "schedule:morning" -> "Harmonogram rano"
+        "schedule:evening" -> "Harmonogram wieczorem"
+        else -> source
+    }
+}
+
+private fun actionLabel(action: String): String {
+    return when (action) {
+        SoundAction.SILENCE.name -> "Wycisz"
+        SoundAction.UNSILENCE.name -> "Odcisz"
+        SoundAction.VIBRATE.name -> "Wibracje"
+        SoundAction.DO_NOTHING.name -> "Bez zmian"
+        else -> action
+    }
+}
+
+private fun policyLabel(policy: String): String {
+    return when (policy) {
+        SchedulePolicy.AUTO_AFTER_COUNTDOWN.name -> "Po odliczaniu"
+        SchedulePolicy.REQUIRE_CONFIRMATION.name -> "Potwierdzenie"
+        SchedulePolicy.NOTIFY_ONLY.name -> "Tylko powiadom"
+        else -> policy
+    }
+}
+
+private fun outcomeLabel(outcome: String): String {
+    return when (outcome) {
+        "prompted" -> "Pokazano monit"
+        "confirmed" -> "Potwierdzono"
+        "auto_executed" -> "Wykonano automatycznie"
+        "dismissed" -> "Anulowano"
+        "skipped_disabled" -> "Pominięto: wyłączone"
+        "skipped_missing_notification_policy_access" -> "Pominięto: brak dostępu"
+        "skipped_policy_changed" -> "Pominięto: zmiana zasad"
+        else -> outcome
+    }
+}
+
+private fun triggerStateLabel(triggerState: String): String {
+    return when (triggerState) {
+        "HOME" -> "Dom"
+        "AWAY" -> "Poza domem"
+        "UNKNOWN" -> "Nieznane"
+        "NOT_APPLICABLE" -> "Nie dotyczy"
+        else -> triggerState
+    }
 }
 
 @Composable
