@@ -140,7 +140,9 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
 
             WifiStatusCard(
                 currentSsid = currentWifiSsid,
-                state = currentWifiState
+                state = currentWifiState,
+                enabled = !isRunning,
+                onSetCurrentAsHome = viewModel::setCurrentWifiAsHome
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -237,7 +239,9 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
 @Composable
 fun WifiStatusCard(
     currentSsid: String?,
-    state: TriggerState
+    state: TriggerState,
+    enabled: Boolean,
+    onSetCurrentAsHome: () -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -265,6 +269,12 @@ fun WifiStatusCard(
                     TriggerState.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
                 }
             )
+            OutlinedButton(
+                onClick = onSetCurrentAsHome,
+                enabled = enabled && currentSsid != null
+            ) {
+                Text("Ustaw obecną jako Dom")
+            }
         }
     }
 }

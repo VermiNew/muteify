@@ -187,6 +187,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun setCurrentWifiAsHome() {
+        val currentSsid = _currentWifiSsid.value ?: return
+        _ssid.value = currentSsid
+        refreshWifiStatus()
+    }
+
     fun openNotificationPolicySettings() {
         val context = getApplication<Application>()
         val intent = Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS).apply {
