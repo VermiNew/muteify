@@ -70,6 +70,9 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
     var isWifiEnabled by remember {
         mutableStateOf(isWifiEnabled(context))
     }
+    var showAdvancedSettings by remember {
+        mutableStateOf(false)
+    }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
@@ -167,83 +170,86 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
                 onSetCurrentAsHome = viewModel::setCurrentWifiAsHome
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            OutlinedTextField(
-                value = ssid,
-                onValueChange = viewModel::onSsidChanged,
-                label = { Text("Nazwa sieci Wi-Fi (SSID)") },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isRunning,
-                singleLine = true
-            )
-
-            SoundActionDropdown(
-                label = "Wchodząc do domu",
-                selected = actionEnter,
-                onSelected = viewModel::onActionEnterChanged,
-                enabled = !isRunning
-            )
-
-            SoundActionDropdown(
-                label = "Wychodząc z domu",
-                selected = actionLeave,
-                onSelected = viewModel::onActionLeaveChanged,
-                enabled = !isRunning
-            )
-
-            Text(
-                text = "Harmonogram",
-                style = MaterialTheme.typography.titleMedium
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            AdvancedSettingsSection(
+                expanded = showAdvancedSettings,
+                onExpandedChanged = { showAdvancedSettings = it }
             ) {
                 OutlinedTextField(
-                    value = morningTime,
-                    onValueChange = viewModel::onMorningTimeChanged,
-                    label = { Text("Rano") },
-                    modifier = Modifier.weight(1f),
+                    value = ssid,
+                    onValueChange = viewModel::onSsidChanged,
+                    label = { Text("Nazwa sieci Wi-Fi (SSID)") },
+                    modifier = Modifier.fillMaxWidth(),
                     enabled = !isRunning,
                     singleLine = true
                 )
-                OutlinedTextField(
-                    value = nightTime,
-                    onValueChange = viewModel::onNightTimeChanged,
-                    label = { Text("Wieczorem") },
-                    modifier = Modifier.weight(1f),
-                    enabled = !isRunning,
-                    singleLine = true
+
+                SoundActionDropdown(
+                    label = "Wchodząc do domu",
+                    selected = actionEnter,
+                    onSelected = viewModel::onActionEnterChanged,
+                    enabled = !isRunning
+                )
+
+                SoundActionDropdown(
+                    label = "Wychodząc z domu",
+                    selected = actionLeave,
+                    onSelected = viewModel::onActionLeaveChanged,
+                    enabled = !isRunning
+                )
+
+                Text(
+                    text = "Harmonogram",
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedTextField(
+                        value = morningTime,
+                        onValueChange = viewModel::onMorningTimeChanged,
+                        label = { Text("Rano") },
+                        modifier = Modifier.weight(1f),
+                        enabled = !isRunning,
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = nightTime,
+                        onValueChange = viewModel::onNightTimeChanged,
+                        label = { Text("Wieczorem") },
+                        modifier = Modifier.weight(1f),
+                        enabled = !isRunning,
+                        singleLine = true
+                    )
+                }
+
+                ScheduleSlotBehaviorControls(
+                    title = "Rano",
+                    enabled = morningScheduleEnabled,
+                    action = morningScheduleAction,
+                    policy = morningSchedulePolicy,
+                    countdownSeconds = morningCountdownSeconds,
+                    controlsEnabled = !isRunning,
+                    onEnabledChanged = viewModel::onMorningScheduleEnabledChanged,
+                    onActionChanged = viewModel::onMorningScheduleActionChanged,
+                    onPolicyChanged = viewModel::onMorningSchedulePolicyChanged,
+                    onCountdownSecondsChanged = viewModel::onMorningCountdownSecondsChanged
+                )
+
+                ScheduleSlotBehaviorControls(
+                    title = "Wieczorem",
+                    enabled = eveningScheduleEnabled,
+                    action = eveningScheduleAction,
+                    policy = eveningSchedulePolicy,
+                    countdownSeconds = eveningCountdownSeconds,
+                    controlsEnabled = !isRunning,
+                    onEnabledChanged = viewModel::onEveningScheduleEnabledChanged,
+                    onActionChanged = viewModel::onEveningScheduleActionChanged,
+                    onPolicyChanged = viewModel::onEveningSchedulePolicyChanged,
+                    onCountdownSecondsChanged = viewModel::onEveningCountdownSecondsChanged
                 )
             }
-
-            ScheduleSlotBehaviorControls(
-                title = "Rano",
-                enabled = morningScheduleEnabled,
-                action = morningScheduleAction,
-                policy = morningSchedulePolicy,
-                countdownSeconds = morningCountdownSeconds,
-                controlsEnabled = !isRunning,
-                onEnabledChanged = viewModel::onMorningScheduleEnabledChanged,
-                onActionChanged = viewModel::onMorningScheduleActionChanged,
-                onPolicyChanged = viewModel::onMorningSchedulePolicyChanged,
-                onCountdownSecondsChanged = viewModel::onMorningCountdownSecondsChanged
-            )
-
-            ScheduleSlotBehaviorControls(
-                title = "Wieczorem",
-                enabled = eveningScheduleEnabled,
-                action = eveningScheduleAction,
-                policy = eveningSchedulePolicy,
-                countdownSeconds = eveningCountdownSeconds,
-                controlsEnabled = !isRunning,
-                onEnabledChanged = viewModel::onEveningScheduleEnabledChanged,
-                onActionChanged = viewModel::onEveningScheduleActionChanged,
-                onPolicyChanged = viewModel::onEveningSchedulePolicyChanged,
-                onCountdownSecondsChanged = viewModel::onEveningCountdownSecondsChanged
-            )
 
             RecentHistorySection(events = recentHistoryEvents)
         }
@@ -254,6 +260,45 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
             enabled = isRunning || ssid.isNotBlank()
         ) {
             Text(if (isRunning) "Zatrzymaj" else "Zapisz i włącz")
+        }
+    }
+}
+
+@Composable
+fun AdvancedSettingsSection(
+    expanded: Boolean,
+    onExpandedChanged: (Boolean) -> Unit,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        tonalElevation = 2.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Ustawienia zaawansowane",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                TextButton(onClick = { onExpandedChanged(!expanded) }) {
+                    Text(if (expanded) "Ukryj" else "Pokaż")
+                }
+            }
+            if (expanded) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    content = content
+                )
+            }
         }
     }
 }
