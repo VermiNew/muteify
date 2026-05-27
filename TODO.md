@@ -238,7 +238,7 @@ Theme selection should be stored persistently.
 - [ ] Add multiple trusted zones.
 - [ ] Add opt-in GPS/geofencing fallback.
 - [ ] Add advanced rule priority settings.
-- [ ] Add four polished app themes: Day, Night, Reading, OLED.
+- [x] Add four polished app themes: Day, Night, Reading, OLED.
 
 ## Suggested Implementation Phases
 

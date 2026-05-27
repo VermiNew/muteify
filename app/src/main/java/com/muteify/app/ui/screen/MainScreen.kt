@@ -25,6 +25,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.muteify.app.data.model.AppTheme
 import com.muteify.app.data.model.RuleHistoryEntity
 import com.muteify.app.data.model.SchedulePolicy
 import com.muteify.app.data.model.SoundAction
@@ -53,6 +54,7 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
     val automationPauseSummary by viewModel.automationPauseSummary.collectAsState()
     val quietHoursInput by viewModel.quietHoursInput.collectAsState()
     val quietHoursSummary by viewModel.quietHoursSummary.collectAsState()
+    val appTheme by viewModel.appTheme.collectAsState()
     val isRunning by viewModel.isRunning.collectAsState()
     val hasNotificationPolicyAccess by viewModel.hasNotificationPolicyAccess.collectAsState()
     val nextScheduleSummary by viewModel.nextScheduleSummary.collectAsState()
@@ -195,6 +197,12 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
                 expanded = showAdvancedSettings,
                 onExpandedChanged = { showAdvancedSettings = it }
             ) {
+                AppThemeDropdown(
+                    label = "Motyw aplikacji",
+                    selected = appTheme,
+                    onSelected = viewModel::onAppThemeChanged
+                )
+
                 OutlinedTextField(
                     value = ssid,
                     onValueChange = viewModel::onSsidChanged,
@@ -1235,6 +1243,56 @@ fun SchedulePolicyDropdown(
 private fun SchedulePolicy.runsAfterCountdown(): Boolean {
     return this == SchedulePolicy.AUTO_AFTER_COUNTDOWN ||
         this == SchedulePolicy.AUTO_SILENT_AFTER_COUNTDOWN
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+fun AppThemeDropdown(
+    label: String,
+    selected: AppTheme,
+    onSelected: (AppTheme) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    val labels = mapOf(
+        AppTheme.OLED to "OLED",
+        AppTheme.DAY to "Dzień",
+        AppTheme.NIGHT to "Noc",
+        AppTheme.READING to "Czytanie"
+    )
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded }
+    ) {
+        OutlinedTextField(
+            value = labels[selected] ?: "",
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(
+                    type = ExposedDropdownMenuAnchorType.PrimaryNotEditable,
+                    enabled = true
+                )
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            AppTheme.entries.forEach { theme ->
+                DropdownMenuItem(
+                    text = { Text(labels[theme] ?: "") },
+                    onClick = {
+                        onSelected(theme)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
 }
 
 @Composable

@@ -4,6 +4,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import com.muteify.app.data.model.AppTheme
 
 private val OledColorScheme = darkColorScheme(
     primary = OledPrimary,
@@ -24,10 +25,52 @@ private val OledColorScheme = darkColorScheme(
     error = OledError
 )
 
-private val LightColorScheme = lightColorScheme(
-    primary = UtilityLightPrimary,
-    secondary = UtilityLightSecondary,
-    tertiary = UtilityLightTertiary
+private val DayColorScheme = lightColorScheme(
+    primary = DayPrimary,
+    onPrimary = DayOnPrimary,
+    primaryContainer = DaySurfaceVariant,
+    onPrimaryContainer = DayText,
+    secondary = DaySecondary,
+    tertiary = DayTertiary,
+    background = DayBackground,
+    onBackground = DayText,
+    surface = DaySurface,
+    onSurface = DayText,
+    surfaceVariant = DaySurfaceVariant,
+    onSurfaceVariant = DayMutedText,
+    error = DayError
+)
+
+private val NightColorScheme = darkColorScheme(
+    primary = NightPrimary,
+    onPrimary = NightOnPrimary,
+    primaryContainer = NightSurfaceVariant,
+    onPrimaryContainer = NightText,
+    secondary = NightSecondary,
+    tertiary = NightTertiary,
+    background = NightBackground,
+    onBackground = NightText,
+    surface = NightSurface,
+    onSurface = NightText,
+    surfaceVariant = NightSurfaceVariant,
+    onSurfaceVariant = NightMutedText,
+    error = NightError
+)
+
+private val ReadingColorScheme = lightColorScheme(
+    primary = ReadingPrimary,
+    onPrimary = ReadingOnPrimary,
+    primaryContainer = ReadingSurfaceVariant,
+    onPrimaryContainer = ReadingText,
+    secondary = ReadingSecondary,
+    tertiary = ReadingTertiary,
+    background = ReadingBackground,
+    onBackground = ReadingText,
+    surface = ReadingSurface,
+    onSurface = ReadingText,
+    surfaceVariant = ReadingSurfaceVariant,
+    onSurfaceVariant = ReadingMutedText,
+    error = ReadingError
 )
 
 @Suppress("UNUSED_PARAMETER")
@@ -35,12 +78,14 @@ private val LightColorScheme = lightColorScheme(
 fun MuteifyTheme(
     darkTheme: Boolean = true,
     dynamicColor: Boolean = false,
+    appTheme: AppTheme = if (darkTheme) AppTheme.OLED else AppTheme.DAY,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) {
-        OledColorScheme
-    } else {
-        LightColorScheme
+    val colorScheme = when (appTheme) {
+        AppTheme.OLED -> OledColorScheme
+        AppTheme.DAY -> DayColorScheme
+        AppTheme.NIGHT -> NightColorScheme
+        AppTheme.READING -> ReadingColorScheme
     }
 
     MaterialTheme(

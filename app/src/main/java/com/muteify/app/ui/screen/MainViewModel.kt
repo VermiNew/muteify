@@ -6,6 +6,7 @@ import android.content.Intent
 import android.provider.Settings
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.muteify.app.data.model.AppTheme
 import com.muteify.app.data.model.RuleHistoryEntity
 import com.muteify.app.data.model.RuleEntity
 import com.muteify.app.data.model.SchedulePolicy
@@ -108,6 +109,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _quietHoursSummary = MutableStateFlow("Brak jednorazowego wyciszenia")
     val quietHoursSummary: StateFlow<String> = _quietHoursSummary
+
+    private val _appTheme = MutableStateFlow(AppTheme.OLED)
+    val appTheme: StateFlow<AppTheme> = _appTheme
 
     private val _isRunning = MutableStateFlow(false)
     val isRunning: StateFlow<Boolean> = _isRunning
@@ -249,6 +253,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
     }
+    fun onAppThemeChanged(value: AppTheme) {
+        _appTheme.value = value
+        viewModelScope.launch {
+            settingsRepository.saveAppTheme(value)
+        }
+    }
 
     fun refreshPermissionStatus() {
         val notificationManager =
@@ -354,6 +364,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _automationPauseSummary.value =
                     settings.automationPausedUntilMillis.toAutomationPauseSummary()
                 _quietHoursSummary.value = settings.quietHoursUntilMillis.toQuietHoursSummary()
+                _appTheme.value = settings.appTheme
                 _nextScheduleSummary.value = settings.toNextScheduleSummary()
             }
         }
