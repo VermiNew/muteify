@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.muteify.app.data.model.AppTheme
 import com.muteify.app.data.model.RuleHistoryEntity
 import com.muteify.app.data.model.RuleEntity
+import com.muteify.app.data.model.RulePriority
 import com.muteify.app.data.model.SchedulePolicy
 import com.muteify.app.data.model.SoundAction
 import com.muteify.app.data.model.TriggerState
@@ -112,6 +113,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _appTheme = MutableStateFlow(AppTheme.OLED)
     val appTheme: StateFlow<AppTheme> = _appTheme
+
+    private val _rulePriority = MutableStateFlow(RulePriority.SCHEDULE_FIRST)
+    val rulePriority: StateFlow<RulePriority> = _rulePriority
 
     private val _isRunning = MutableStateFlow(false)
     val isRunning: StateFlow<Boolean> = _isRunning
@@ -259,6 +263,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             settingsRepository.saveAppTheme(value)
         }
     }
+    fun onRulePriorityChanged(value: RulePriority) {
+        _rulePriority.value = value
+        viewModelScope.launch {
+            settingsRepository.saveRulePriority(value)
+        }
+    }
 
     fun refreshPermissionStatus() {
         val notificationManager =
@@ -365,6 +375,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     settings.automationPausedUntilMillis.toAutomationPauseSummary()
                 _quietHoursSummary.value = settings.quietHoursUntilMillis.toQuietHoursSummary()
                 _appTheme.value = settings.appTheme
+                _rulePriority.value = settings.rulePriority
                 _nextScheduleSummary.value = settings.toNextScheduleSummary()
             }
         }

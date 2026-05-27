@@ -27,6 +27,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.muteify.app.data.model.AppTheme
 import com.muteify.app.data.model.RuleHistoryEntity
+import com.muteify.app.data.model.RulePriority
 import com.muteify.app.data.model.SchedulePolicy
 import com.muteify.app.data.model.SoundAction
 import com.muteify.app.data.model.TriggerState
@@ -55,6 +56,7 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
     val quietHoursInput by viewModel.quietHoursInput.collectAsState()
     val quietHoursSummary by viewModel.quietHoursSummary.collectAsState()
     val appTheme by viewModel.appTheme.collectAsState()
+    val rulePriority by viewModel.rulePriority.collectAsState()
     val isRunning by viewModel.isRunning.collectAsState()
     val hasNotificationPolicyAccess by viewModel.hasNotificationPolicyAccess.collectAsState()
     val nextScheduleSummary by viewModel.nextScheduleSummary.collectAsState()
@@ -201,6 +203,12 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
                     label = "Motyw aplikacji",
                     selected = appTheme,
                     onSelected = viewModel::onAppThemeChanged
+                )
+
+                RulePriorityDropdown(
+                    label = "Priorytet reguł",
+                    selected = rulePriority,
+                    onSelected = viewModel::onRulePriorityChanged
                 )
 
                 OutlinedTextField(
@@ -1153,6 +1161,7 @@ private fun outcomeLabel(outcome: String): String {
         "skipped_disabled" -> "Pominięto: wyłączone"
         "skipped_missing_notification_policy_access" -> "Pominięto: brak dostępu"
         "skipped_policy_changed" -> "Pominięto: zmiana zasad"
+        "skipped_rule_priority" -> "Pominięto: priorytet reguł"
         else -> outcome
     }
 }
@@ -1169,6 +1178,10 @@ private fun historyDetailsLabel(details: String): String {
         "Pending schedule action was skipped because policy changed" ->
             "Pominięto, bo zasady zmieniły się po utworzeniu monitu."
         "Pending schedule action was cancelled" -> "Użytkownik anulował oczekującą akcję."
+        "Schedule unmute was skipped because Wi-Fi has priority" ->
+            "Pominięto odciszenie, bo Wi-Fi ma pierwszeństwo przed harmonogramem."
+        "Pending schedule unmute was skipped because Wi-Fi has priority" ->
+            "Pominięto oczekujące odciszenie, bo Wi-Fi ma pierwszeństwo."
         "One-off quiet hours started" -> "Rozpoczęto jednorazowe ciche godziny."
         "One-off quiet hours cancelled" -> "Anulowano jednorazowe ciche godziny."
         "One-off quiet hours ended" -> "Zakończono jednorazowe ciche godziny."
@@ -1287,6 +1300,54 @@ fun AppThemeDropdown(
                     text = { Text(labels[theme] ?: "") },
                     onClick = {
                         onSelected(theme)
+                        expanded = false
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+fun RulePriorityDropdown(
+    label: String,
+    selected: RulePriority,
+    onSelected: (RulePriority) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    val labels = mapOf(
+        RulePriority.SCHEDULE_FIRST to "Harmonogram przed Wi-Fi",
+        RulePriority.WIFI_FIRST to "Wi-Fi przed harmonogramem"
+    )
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { expanded = !expanded }
+    ) {
+        OutlinedTextField(
+            value = labels[selected] ?: "",
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(
+                    type = ExposedDropdownMenuAnchorType.PrimaryNotEditable,
+                    enabled = true
+                )
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            RulePriority.entries.forEach { priority ->
+                DropdownMenuItem(
+                    text = { Text(labels[priority] ?: "") },
+                    onClick = {
+                        onSelected(priority)
                         expanded = false
                     }
                 )

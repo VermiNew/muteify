@@ -237,7 +237,7 @@ Theme selection should be stored persistently.
 - [ ] Add trusted Bluetooth device detection.
 - [ ] Add multiple trusted zones.
 - [ ] Add opt-in GPS/geofencing fallback.
-- [ ] Add advanced rule priority settings.
+- [x] Add advanced rule priority settings.
 - [x] Add four polished app themes: Day, Night, Reading, OLED.
 
 ## Suggested Implementation Phases

@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.muteify.app.data.model.AppTheme
+import com.muteify.app.data.model.RulePriority
 import com.muteify.app.data.model.SchedulePolicy
 import com.muteify.app.data.model.SoundAction
 import kotlinx.coroutines.flow.Flow
@@ -23,7 +24,8 @@ data class ScheduleSettings(
     val neverAutoUnmute: Boolean = true,
     val automationPausedUntilMillis: Long? = null,
     val quietHoursUntilMillis: Long? = null,
-    val appTheme: AppTheme = AppTheme.OLED
+    val appTheme: AppTheme = AppTheme.OLED,
+    val rulePriority: RulePriority = RulePriority.SCHEDULE_FIRST
 ) {
     val morningTime: String get() = morning.time
     val nightTime: String get() = evening.time
@@ -82,7 +84,9 @@ class SettingsRepository(context: Context) {
             neverAutoUnmute = preferences[NEVER_AUTO_UNMUTE_KEY] ?: true,
             automationPausedUntilMillis = preferences[AUTOMATION_PAUSED_UNTIL_MILLIS_KEY],
             quietHoursUntilMillis = preferences[QUIET_HOURS_UNTIL_MILLIS_KEY],
-            appTheme = preferences[APP_THEME_KEY].toAppThemeOr(AppTheme.OLED)
+            appTheme = preferences[APP_THEME_KEY].toAppThemeOr(AppTheme.OLED),
+            rulePriority = preferences[RULE_PRIORITY_KEY]
+                .toRulePriorityOr(RulePriority.SCHEDULE_FIRST)
         )
     }
 
@@ -149,6 +153,12 @@ class SettingsRepository(context: Context) {
         }
     }
 
+    suspend fun saveRulePriority(value: RulePriority) {
+        dataStore.edit { preferences ->
+            preferences[RULE_PRIORITY_KEY] = value.name
+        }
+    }
+
     private fun String?.toSoundActionOr(default: SoundAction): SoundAction {
         return this?.let { runCatching { SoundAction.valueOf(it) }.getOrNull() } ?: default
     }
@@ -159,6 +169,10 @@ class SettingsRepository(context: Context) {
 
     private fun String?.toAppThemeOr(default: AppTheme): AppTheme {
         return this?.let { runCatching { AppTheme.valueOf(it) }.getOrNull() } ?: default
+    }
+
+    private fun String?.toRulePriorityOr(default: RulePriority): RulePriority {
+        return this?.let { runCatching { RulePriority.valueOf(it) }.getOrNull() } ?: default
     }
 
     private companion object {
@@ -180,5 +194,6 @@ class SettingsRepository(context: Context) {
         val QUIET_HOURS_UNTIL_MILLIS_KEY =
             longPreferencesKey("quiet_hours_until_millis")
         val APP_THEME_KEY = stringPreferencesKey("app_theme")
+        val RULE_PRIORITY_KEY = stringPreferencesKey("rule_priority")
     }
 }

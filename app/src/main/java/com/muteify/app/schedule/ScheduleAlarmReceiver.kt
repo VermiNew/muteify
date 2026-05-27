@@ -3,6 +3,7 @@ package com.muteify.app.schedule
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import com.muteify.app.data.model.RulePriority
 import com.muteify.app.data.model.SchedulePolicy
 import com.muteify.app.data.model.SoundAction
 import com.muteify.app.data.model.TriggerState
@@ -50,6 +51,7 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
                 historyRepository,
                 settings.neverAutoUnmute,
                 settings.automationPausedUntilMillis,
+                settings.rulePriority,
                 outcome = "confirmed"
             )
             ACTION_RUN_PENDING -> runAutomaticPendingAction(
@@ -60,7 +62,8 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
                 notifier,
                 historyRepository,
                 settings.neverAutoUnmute,
-                settings.automationPausedUntilMillis
+                settings.automationPausedUntilMillis,
+                settings.rulePriority
             )
             ACTION_DISMISS -> dismissPendingAction(
                 slot,
@@ -123,6 +126,20 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
 
         val policy = slotSettings.effectivePolicy(settings.neverAutoUnmute)
         val homeState = resolveHomeState(context, slotSettings)
+        if (settings.rulePriority.blocksScheduleAction(slotSettings, homeState)) {
+            dismissPendingAction(slot, scheduler, notifier)
+            recordScheduleEvent(
+                historyRepository = historyRepository,
+                slot = slot,
+                settings = slotSettings,
+                policy = policy,
+                homeState = homeState,
+                outcome = "skipped_rule_priority",
+                details = "Schedule unmute was skipped because Wi-Fi has priority"
+            )
+            return
+        }
+
         when (policy) {
             SchedulePolicy.AUTO_SILENT_AFTER_COUNTDOWN -> {
                 notifier.dismiss(slot)
@@ -166,6 +183,7 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
         historyRepository: RuleHistoryRepository,
         neverAutoUnmute: Boolean,
         automationPausedUntilMillis: Long?,
+        rulePriority: RulePriority,
         outcome: String
     ) {
         dismissPendingAction(slot, scheduler, notifier)
@@ -190,6 +208,19 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
                 homeState = null,
                 outcome = "skipped_paused",
                 details = "Pending schedule action was skipped because automation is paused"
+            )
+            return
+        }
+        val homeState = resolveHomeState(context, settings)
+        if (rulePriority.blocksScheduleAction(settings, homeState)) {
+            recordScheduleEvent(
+                historyRepository = historyRepository,
+                slot = slot,
+                settings = settings,
+                policy = settings.effectivePolicy(neverAutoUnmute),
+                homeState = homeState,
+                outcome = "skipped_rule_priority",
+                details = "Pending schedule unmute was skipped because Wi-Fi has priority"
             )
             return
         }
@@ -226,7 +257,8 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
         notifier: SchedulePromptNotifier,
         historyRepository: RuleHistoryRepository,
         neverAutoUnmute: Boolean,
-        automationPausedUntilMillis: Long?
+        automationPausedUntilMillis: Long?,
+        rulePriority: RulePriority
     ) {
         if (!settings.effectivePolicy(neverAutoUnmute).runsAfterCountdown()) {
             dismissPendingAction(slot, scheduler, notifier)
@@ -250,6 +282,7 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
             historyRepository,
             neverAutoUnmute,
             automationPausedUntilMillis = automationPausedUntilMillis,
+            rulePriority = rulePriority,
             outcome = "auto_executed"
         )
     }
@@ -351,6 +384,15 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
     private fun SchedulePolicy.runsAfterCountdown(): Boolean {
         return this == SchedulePolicy.AUTO_AFTER_COUNTDOWN ||
             this == SchedulePolicy.AUTO_SILENT_AFTER_COUNTDOWN
+    }
+
+    private fun RulePriority.blocksScheduleAction(
+        settings: ScheduleSlotSettings,
+        homeState: TriggerState?
+    ): Boolean {
+        return this == RulePriority.WIFI_FIRST &&
+            settings.action == SoundAction.UNSILENCE &&
+            homeState != TriggerState.HOME
     }
 
     companion object {
