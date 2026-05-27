@@ -480,7 +480,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val effectivePolicy = if (
             neverAutoUnmute &&
             action == SoundAction.UNSILENCE &&
-            policy == SchedulePolicy.AUTO_AFTER_COUNTDOWN
+            policy.runsAfterCountdown()
         ) {
             SchedulePolicy.REQUIRE_CONFIRMATION
         } else {
@@ -488,9 +488,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         return when (effectivePolicy) {
             SchedulePolicy.AUTO_AFTER_COUNTDOWN -> "po ${countdownSeconds} s"
+            SchedulePolicy.AUTO_SILENT_AFTER_COUNTDOWN -> "po ${countdownSeconds} s bez monitu"
             SchedulePolicy.REQUIRE_CONFIRMATION -> "po potwierdzeniu"
             SchedulePolicy.NOTIFY_ONLY -> "jako powiadomienie"
         }
+    }
+
+    private fun SchedulePolicy.runsAfterCountdown(): Boolean {
+        return this == SchedulePolicy.AUTO_AFTER_COUNTDOWN ||
+            this == SchedulePolicy.AUTO_SILENT_AFTER_COUNTDOWN
     }
 
     private data class NextScheduleCandidate(

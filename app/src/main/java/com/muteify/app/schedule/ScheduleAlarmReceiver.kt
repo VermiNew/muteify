@@ -123,11 +123,20 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
 
         val policy = slotSettings.effectivePolicy(settings.neverAutoUnmute)
         val homeState = resolveHomeState(context, slotSettings)
-        notifier.show(slot, slotSettings, policy, homeState)
-        if (policy == SchedulePolicy.AUTO_AFTER_COUNTDOWN) {
-            scheduler.schedulePendingAction(slot, slotSettings.countdownSeconds)
-        } else {
-            scheduler.cancelPendingAction(slot)
+        when (policy) {
+            SchedulePolicy.AUTO_SILENT_AFTER_COUNTDOWN -> {
+                notifier.dismiss(slot)
+                scheduler.schedulePendingAction(slot, slotSettings.countdownSeconds)
+            }
+            SchedulePolicy.AUTO_AFTER_COUNTDOWN -> {
+                notifier.show(slot, slotSettings, policy, homeState)
+                scheduler.schedulePendingAction(slot, slotSettings.countdownSeconds)
+            }
+            SchedulePolicy.REQUIRE_CONFIRMATION,
+            SchedulePolicy.NOTIFY_ONLY -> {
+                notifier.show(slot, slotSettings, policy, homeState)
+                scheduler.cancelPendingAction(slot)
+            }
         }
         recordScheduleEvent(
             historyRepository = historyRepository,
@@ -135,8 +144,16 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
             settings = slotSettings,
             policy = policy,
             homeState = homeState,
-            outcome = "prompted",
-            details = "Schedule trigger handled"
+            outcome = if (policy == SchedulePolicy.AUTO_SILENT_AFTER_COUNTDOWN) {
+                "countdown_scheduled"
+            } else {
+                "prompted"
+            },
+            details = if (policy == SchedulePolicy.AUTO_SILENT_AFTER_COUNTDOWN) {
+                "Schedule trigger handled without prompt"
+            } else {
+                "Schedule trigger handled"
+            }
         )
     }
 
@@ -211,7 +228,7 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
         neverAutoUnmute: Boolean,
         automationPausedUntilMillis: Long?
     ) {
-        if (settings.effectivePolicy(neverAutoUnmute) != SchedulePolicy.AUTO_AFTER_COUNTDOWN) {
+        if (!settings.effectivePolicy(neverAutoUnmute).runsAfterCountdown()) {
             dismissPendingAction(slot, scheduler, notifier)
             recordScheduleEvent(
                 historyRepository = historyRepository,
@@ -323,12 +340,17 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
         return if (
             neverAutoUnmute &&
             action == SoundAction.UNSILENCE &&
-            policy == SchedulePolicy.AUTO_AFTER_COUNTDOWN
+            policy.runsAfterCountdown()
         ) {
             SchedulePolicy.REQUIRE_CONFIRMATION
         } else {
             policy
         }
+    }
+
+    private fun SchedulePolicy.runsAfterCountdown(): Boolean {
+        return this == SchedulePolicy.AUTO_AFTER_COUNTDOWN ||
+            this == SchedulePolicy.AUTO_SILENT_AFTER_COUNTDOWN
     }
 
     companion object {

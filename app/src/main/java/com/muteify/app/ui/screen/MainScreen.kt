@@ -779,7 +779,7 @@ fun ScheduleSlotBehaviorControls(
             onValueChange = onCountdownSecondsChanged,
             label = { Text("$title: odliczanie (s)") },
             modifier = Modifier.fillMaxWidth(),
-            enabled = controlsEnabled && enabled && policy == SchedulePolicy.AUTO_AFTER_COUNTDOWN,
+            enabled = controlsEnabled && enabled && policy.runsAfterCountdown(),
             singleLine = true
         )
     }
@@ -1052,6 +1052,7 @@ private fun actionLabel(action: String): String {
 private fun policyLabel(policy: String): String {
     return when (policy) {
         SchedulePolicy.AUTO_AFTER_COUNTDOWN.name -> "Po odliczaniu"
+        SchedulePolicy.AUTO_SILENT_AFTER_COUNTDOWN.name -> "Bez monitu po odliczaniu"
         SchedulePolicy.REQUIRE_CONFIRMATION.name -> "Potwierdzenie"
         SchedulePolicy.NOTIFY_ONLY.name -> "Tylko powiadom"
         else -> policy
@@ -1109,6 +1110,7 @@ fun SchedulePolicyDropdown(
 
     val labels = mapOf(
         SchedulePolicy.AUTO_AFTER_COUNTDOWN to "Po odliczaniu",
+        SchedulePolicy.AUTO_SILENT_AFTER_COUNTDOWN to "Bez monitu po odliczaniu",
         SchedulePolicy.REQUIRE_CONFIRMATION to "Wymagaj potwierdzenia",
         SchedulePolicy.NOTIFY_ONLY to "Tylko powiadom"
     )
@@ -1146,6 +1148,11 @@ fun SchedulePolicyDropdown(
             }
         }
     }
+}
+
+private fun SchedulePolicy.runsAfterCountdown(): Boolean {
+    return this == SchedulePolicy.AUTO_AFTER_COUNTDOWN ||
+        this == SchedulePolicy.AUTO_SILENT_AFTER_COUNTDOWN
 }
 
 @Composable

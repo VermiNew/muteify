@@ -101,6 +101,8 @@ class SchedulePromptNotifier(context: Context) {
         return when (policy) {
             SchedulePolicy.AUTO_AFTER_COUNTDOWN ->
                 "$slotLabel: za ${settings.countdownSeconds} s: $actionLabel"
+            SchedulePolicy.AUTO_SILENT_AFTER_COUNTDOWN ->
+                "$slotLabel: za ${settings.countdownSeconds} s: $actionLabel"
             SchedulePolicy.REQUIRE_CONFIRMATION ->
                 "$slotLabel: potwierdź: $actionLabel"
             SchedulePolicy.NOTIFY_ONLY ->
