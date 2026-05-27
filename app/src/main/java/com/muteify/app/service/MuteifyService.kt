@@ -26,6 +26,8 @@ class MuteifyService : Service() {
         const val EXTRA_ACTION_ENTER = "extra_action_enter"
         const val EXTRA_ACTION_LEAVE = "extra_action_leave"
         const val EXTRA_NEVER_AUTO_UNMUTE = "extra_never_auto_unmute"
+        const val EXTRA_AUTOMATION_PAUSED_UNTIL = "extra_automation_paused_until"
+        const val ACTION_UPDATE_PAUSE = "action_update_pause"
         const val ACTION_CONFIRM = "action_confirm"
         const val ACTION_DISMISS = "action_dismiss"
     }
@@ -61,6 +63,13 @@ class MuteifyService : Service() {
                 ruleEngine.dismissAction()
                 clearPendingActionNotification()
             }
+            ACTION_UPDATE_PAUSE -> {
+                val pausedUntilMillis = intent.pausedUntilMillisExtra()
+                ruleEngine.updateAutomationPause(pausedUntilMillis)
+                if (pausedUntilMillis != null && pausedUntilMillis > System.currentTimeMillis()) {
+                    clearPendingActionNotification()
+                }
+            }
             else -> {
                 val ssid = intent?.getStringExtra(EXTRA_SSID) ?: return START_STICKY
                 val enter = intent.getStringExtra(EXTRA_ACTION_ENTER)
@@ -68,7 +77,7 @@ class MuteifyService : Service() {
                 val leave = intent.getStringExtra(EXTRA_ACTION_LEAVE)
                     ?.let { SoundAction.valueOf(it) } ?: SoundAction.SILENCE
                 val neverAutoUnmute = intent.getBooleanExtra(EXTRA_NEVER_AUTO_UNMUTE, true)
-                ruleEngine.start(ssid, enter, leave, neverAutoUnmute)
+                ruleEngine.start(ssid, enter, leave, neverAutoUnmute, intent.pausedUntilMillisExtra())
             }
         }
         return START_STICKY
@@ -159,5 +168,10 @@ class MuteifyService : Service() {
     private fun SoundAction.canRunAutomatically(neverAutoUnmute: Boolean): Boolean {
         return this != SoundAction.DO_NOTHING &&
             !(neverAutoUnmute && this == SoundAction.UNSILENCE)
+    }
+
+    private fun Intent.pausedUntilMillisExtra(): Long? {
+        val value = getLongExtra(EXTRA_AUTOMATION_PAUSED_UNTIL, 0L)
+        return value.takeIf { it > 0L }
     }
 }

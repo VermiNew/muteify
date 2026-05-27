@@ -19,13 +19,17 @@ import com.muteify.app.data.repository.SettingsRepository
 import com.muteify.app.engine.AudioController
 import com.muteify.app.monitor.WifiPresenceChecker
 import com.muteify.app.schedule.ScheduleAlarmScheduler
+import com.muteify.app.schedule.SchedulePromptNotifier
+import com.muteify.app.schedule.ScheduleSlot
 import com.muteify.app.service.MuteifyService
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import java.time.Instant
 import java.time.LocalDateTime
 import java.time.LocalTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -34,12 +38,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         const val HOME_RULE_ID = 1L
         const val HOME_RULE_NAME = "Dom"
         val SCHEDULE_TIME_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+        val PAUSE_DATE_TIME_FORMATTER: DateTimeFormatter =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+        val PAUSE_LABEL_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM HH:mm")
     }
 
     private val ruleDao = AppDatabase.getInstance(application).ruleDao()
     private val ruleHistoryRepository = RuleHistoryRepository(application)
     private val settingsRepository = SettingsRepository(application)
     private val scheduleAlarmScheduler = ScheduleAlarmScheduler(application)
+    private val schedulePromptNotifier = SchedulePromptNotifier(application)
     private val audioController = AudioController(application)
     private val wifiPresenceChecker = WifiPresenceChecker(application)
     private var currentScheduleSettings = ScheduleSettings()
@@ -85,6 +93,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _neverAutoUnmute = MutableStateFlow(true)
     val neverAutoUnmute: StateFlow<Boolean> = _neverAutoUnmute
+
+    private val _automationPauseInput = MutableStateFlow("08:00")
+    val automationPauseInput: StateFlow<String> = _automationPauseInput
+
+    private val _automationPauseSummary = MutableStateFlow("Brak aktywnej pauzy")
+    val automationPauseSummary: StateFlow<String> = _automationPauseSummary
 
     private val _isRunning = MutableStateFlow(false)
     val isRunning: StateFlow<Boolean> = _isRunning
@@ -168,6 +182,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             settingsRepository.saveNeverAutoUnmute(value)
         }
     }
+    fun onAutomationPauseInputChanged(value: String) {
+        _automationPauseInput.value = value
+            .filter { it.isDigit() || it == ':' || it == '-' || it == ' ' }
+            .take(16)
+    }
+    fun pauseAutomation() {
+        val pausedUntilMillis = _automationPauseInput.value.toPauseUntilMillis() ?: return
+        saveAutomationPause(pausedUntilMillis)
+    }
+    fun resumeAutomation() {
+        saveAutomationPause(null)
+    }
 
     fun refreshPermissionStatus() {
         val notificationManager =
@@ -217,6 +243,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 putExtra(MuteifyService.EXTRA_ACTION_ENTER, _actionEnter.value.name)
                 putExtra(MuteifyService.EXTRA_ACTION_LEAVE, _actionLeave.value.name)
                 putExtra(MuteifyService.EXTRA_NEVER_AUTO_UNMUTE, _neverAutoUnmute.value)
+                putExtra(
+                    MuteifyService.EXTRA_AUTOMATION_PAUSED_UNTIL,
+                    currentScheduleSettings.automationPausedUntilMillis ?: 0L
+                )
             }
             context.startService(intent)
             _isRunning.value = true
@@ -266,6 +296,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _eveningSchedulePolicy.value = settings.evening.policy
                 _eveningCountdownSeconds.value = settings.evening.countdownSeconds
                 _neverAutoUnmute.value = settings.neverAutoUnmute
+                _automationPauseSummary.value =
+                    settings.automationPausedUntilMillis.toAutomationPauseSummary()
                 _nextScheduleSummary.value = settings.toNextScheduleSummary()
             }
         }
@@ -321,6 +353,34 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private fun saveAutomationPause(pausedUntilMillis: Long?) {
+        _automationPauseSummary.value = pausedUntilMillis.toAutomationPauseSummary()
+        if (pausedUntilMillis.isFutureMillis()) {
+            dismissSchedulePendingActions()
+        }
+        notifyServicePauseChanged(pausedUntilMillis)
+        viewModelScope.launch {
+            settingsRepository.saveAutomationPausedUntilMillis(pausedUntilMillis)
+        }
+    }
+
+    private fun notifyServicePauseChanged(pausedUntilMillis: Long?) {
+        if (!_isRunning.value) return
+        val context = getApplication<Application>()
+        val intent = Intent(context, MuteifyService::class.java).apply {
+            action = MuteifyService.ACTION_UPDATE_PAUSE
+            putExtra(MuteifyService.EXTRA_AUTOMATION_PAUSED_UNTIL, pausedUntilMillis ?: 0L)
+        }
+        context.startService(intent)
+    }
+
+    private fun dismissSchedulePendingActions() {
+        ScheduleSlot.values().forEach { slot ->
+            scheduleAlarmScheduler.cancelPendingAction(slot)
+            schedulePromptNotifier.dismiss(slot)
+        }
+    }
+
     private fun String.toSoundActionOr(default: SoundAction): SoundAction {
         return runCatching { SoundAction.valueOf(this) }.getOrDefault(default)
     }
@@ -337,9 +397,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             ?: 0
     }
 
+    private fun String.toPauseUntilMillis(
+        now: LocalDateTime = LocalDateTime.now()
+    ): Long? {
+        val text = trim()
+        if (text.isBlank()) return null
+
+        val dateTime = runCatching {
+            LocalDateTime.parse(text, PAUSE_DATE_TIME_FORMATTER)
+        }.getOrNull() ?: runCatching {
+            val time = LocalTime.parse(text, SCHEDULE_TIME_FORMATTER)
+            now.toLocalDate()
+                .atTime(time)
+                .let { if (it.isAfter(now)) it else it.plusDays(1) }
+        }.getOrNull()
+
+        if (dateTime == null || !dateTime.isAfter(now)) return null
+        return dateTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+    }
+
     private fun ScheduleSettings.toNextScheduleSummary(
         now: LocalDateTime = LocalDateTime.now()
     ): String {
+        val pauseSummary = automationPausedUntilMillis.toAutomationPauseSummary(now)
+        if (pauseSummary != "Brak aktywnej pauzy") return pauseSummary
+
         val nextSlot = listOf(
             morning,
             evening
@@ -367,6 +449,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun String.toLocalTimeOrNull(): LocalTime? {
         return runCatching { LocalTime.parse(this, SCHEDULE_TIME_FORMATTER) }.getOrNull()
+    }
+
+    private fun Long?.toAutomationPauseSummary(
+        now: LocalDateTime = LocalDateTime.now()
+    ): String {
+        val pausedUntilMillis = this ?: return "Brak aktywnej pauzy"
+        val pausedUntil = Instant.ofEpochMilli(pausedUntilMillis)
+            .atZone(ZoneId.systemDefault())
+            .toLocalDateTime()
+        if (!pausedUntil.isAfter(now)) return "Brak aktywnej pauzy"
+
+        return "Pauza do ${pausedUntil.format(PAUSE_LABEL_FORMATTER)}"
+    }
+
+    private fun Long?.isFutureMillis(): Boolean {
+        return this != null && this > System.currentTimeMillis()
     }
 
     private fun ScheduleSlotSettings.actionSummary(): String {

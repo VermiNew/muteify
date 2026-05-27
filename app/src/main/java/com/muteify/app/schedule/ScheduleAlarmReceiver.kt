@@ -49,6 +49,7 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
                 notifier,
                 historyRepository,
                 settings.neverAutoUnmute,
+                settings.automationPausedUntilMillis,
                 outcome = "confirmed"
             )
             ACTION_RUN_PENDING -> runAutomaticPendingAction(
@@ -58,7 +59,8 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
                 scheduler,
                 notifier,
                 historyRepository,
-                settings.neverAutoUnmute
+                settings.neverAutoUnmute,
+                settings.automationPausedUntilMillis
             )
             ACTION_DISMISS -> dismissPendingAction(
                 slot,
@@ -105,6 +107,20 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
             return
         }
 
+        if (settings.isAutomationPaused()) {
+            dismissPendingAction(slot, scheduler, notifier)
+            recordScheduleEvent(
+                historyRepository = historyRepository,
+                slot = slot,
+                settings = slotSettings,
+                policy = slotSettings.effectivePolicy(settings.neverAutoUnmute),
+                homeState = null,
+                outcome = "skipped_paused",
+                details = "Automation is paused"
+            )
+            return
+        }
+
         val policy = slotSettings.effectivePolicy(settings.neverAutoUnmute)
         val homeState = resolveHomeState(context, slotSettings)
         notifier.show(slot, slotSettings, policy, homeState)
@@ -132,6 +148,7 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
         notifier: SchedulePromptNotifier,
         historyRepository: RuleHistoryRepository,
         neverAutoUnmute: Boolean,
+        automationPausedUntilMillis: Long?,
         outcome: String
     ) {
         dismissPendingAction(slot, scheduler, notifier)
@@ -144,6 +161,18 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
                 homeState = null,
                 outcome = "skipped_disabled",
                 details = "Pending schedule action was skipped because the slot is disabled"
+            )
+            return
+        }
+        if (automationPausedUntilMillis.isAutomationPaused()) {
+            recordScheduleEvent(
+                historyRepository = historyRepository,
+                slot = slot,
+                settings = settings,
+                policy = settings.effectivePolicy(neverAutoUnmute),
+                homeState = null,
+                outcome = "skipped_paused",
+                details = "Pending schedule action was skipped because automation is paused"
             )
             return
         }
@@ -179,7 +208,8 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
         scheduler: ScheduleAlarmScheduler,
         notifier: SchedulePromptNotifier,
         historyRepository: RuleHistoryRepository,
-        neverAutoUnmute: Boolean
+        neverAutoUnmute: Boolean,
+        automationPausedUntilMillis: Long?
     ) {
         if (settings.effectivePolicy(neverAutoUnmute) != SchedulePolicy.AUTO_AFTER_COUNTDOWN) {
             dismissPendingAction(slot, scheduler, notifier)
@@ -202,6 +232,7 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
             notifier,
             historyRepository,
             neverAutoUnmute,
+            automationPausedUntilMillis = automationPausedUntilMillis,
             outcome = "auto_executed"
         )
     }
@@ -278,6 +309,14 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
             ScheduleSlot.MORNING -> morning
             ScheduleSlot.EVENING -> evening
         }
+    }
+
+    private fun ScheduleSettings.isAutomationPaused(): Boolean {
+        return automationPausedUntilMillis.isAutomationPaused()
+    }
+
+    private fun Long?.isAutomationPaused(): Boolean {
+        return this != null && this > System.currentTimeMillis()
     }
 
     private fun ScheduleSlotSettings.effectivePolicy(neverAutoUnmute: Boolean): SchedulePolicy {

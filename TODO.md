@@ -190,7 +190,7 @@ Theme selection should be stored persistently.
 ### Behavior Controls
 
 - [x] Add a visible safety toggle for never unmuting automatically.
-- [ ] Add vacation mode or automation pause until a selected time or date.
+- [x] Add vacation mode or automation pause until a selected time or date.
 - [ ] Add one-off quiet hours, for example: mute until 08:00.
 - [ ] Add a mute-only option that skips the prompt and mutes after countdown, while still forbidding automatic unmute.
 

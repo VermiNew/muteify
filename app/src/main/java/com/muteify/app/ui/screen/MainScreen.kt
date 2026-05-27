@@ -49,6 +49,8 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
     val eveningSchedulePolicy by viewModel.eveningSchedulePolicy.collectAsState()
     val eveningCountdownSeconds by viewModel.eveningCountdownSeconds.collectAsState()
     val neverAutoUnmute by viewModel.neverAutoUnmute.collectAsState()
+    val automationPauseInput by viewModel.automationPauseInput.collectAsState()
+    val automationPauseSummary by viewModel.automationPauseSummary.collectAsState()
     val isRunning by viewModel.isRunning.collectAsState()
     val hasNotificationPolicyAccess by viewModel.hasNotificationPolicyAccess.collectAsState()
     val nextScheduleSummary by viewModel.nextScheduleSummary.collectAsState()
@@ -155,6 +157,14 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
                 neverAutoUnmute = neverAutoUnmute,
                 enabled = !isRunning,
                 onNeverAutoUnmuteChanged = viewModel::onNeverAutoUnmuteChanged
+            )
+
+            AutomationPauseCard(
+                input = automationPauseInput,
+                summary = automationPauseSummary,
+                onInputChanged = viewModel::onAutomationPauseInputChanged,
+                onPause = viewModel::pauseAutomation,
+                onResume = viewModel::resumeAutomation
             )
 
             WifiStatusCard(
@@ -413,6 +423,62 @@ fun WifiStatusCard(
                 enabled = enabled && currentSsid != null
             ) {
                 Text("Ustaw obecną jako Dom")
+            }
+        }
+    }
+}
+
+@Composable
+fun AutomationPauseCard(
+    input: String,
+    summary: String,
+    onInputChanged: (String) -> Unit,
+    onPause: () -> Unit,
+    onResume: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        tonalElevation = 2.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = "Pauza automatyzacji",
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = summary,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            OutlinedTextField(
+                value = input,
+                onValueChange = onInputChanged,
+                label = { Text("Do godziny lub dnia") },
+                placeholder = { Text("08:00 lub 2026-05-27 08:00") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = onPause,
+                    modifier = Modifier.weight(1f),
+                    enabled = input.isNotBlank()
+                ) {
+                    Text("Pauzuj")
+                }
+                OutlinedButton(
+                    onClick = onResume,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Wznów")
+                }
             }
         }
     }

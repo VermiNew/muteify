@@ -36,12 +36,21 @@ class RuleEngine(
     private var actionLeave: SoundAction = SoundAction.SILENCE
     var neverAutoUnmute: Boolean = true
         private set
+    private var automationPausedUntilMillis: Long? = null
 
-    fun start(ssid: String, enter: SoundAction, leave: SoundAction, neverAutoUnmute: Boolean) {
+    fun start(
+        ssid: String,
+        enter: SoundAction,
+        leave: SoundAction,
+        neverAutoUnmute: Boolean,
+        automationPausedUntilMillis: Long?
+    ) {
+        monitorJob?.cancel()
         targetSsid = ssid
         actionEnter = enter
         actionLeave = leave
         this.neverAutoUnmute = neverAutoUnmute
+        updateAutomationPause(automationPausedUntilMillis)
         wifiMonitor.start(ssid)
         monitorJob = scope.launch {
             var lastState: TriggerState? = null
@@ -70,7 +79,16 @@ class RuleEngine(
         wifiMonitor.stop()
     }
 
+    fun updateAutomationPause(pausedUntilMillis: Long?) {
+        automationPausedUntilMillis = pausedUntilMillis
+        if (isAutomationPaused()) {
+            cancelPendingAction()
+        }
+    }
+
     private fun schedulePendingAction(action: SoundAction) {
+        if (isAutomationPaused()) return
+
         pendingActionJob?.cancel()
         pendingAction = action
         onActionScheduled?.invoke(action)
@@ -102,5 +120,10 @@ class RuleEngine(
         pendingActionJob?.cancel()
         pendingActionJob = null
         pendingAction = null
+    }
+
+    private fun isAutomationPaused(): Boolean {
+        val pausedUntil = automationPausedUntilMillis ?: return false
+        return pausedUntil > System.currentTimeMillis()
     }
 }
