@@ -204,7 +204,7 @@ Theme selection should be stored persistently.
 
 - [x] Add a top-level app status section with monitoring state, permissions, next action, and current context.
 - [x] Make the main screen less form-like with simple mode first and advanced settings below.
-- [ ] Prioritize the OLED theme as the first polished theme because it fits night-time utility use.
+- [x] Prioritize the OLED theme as the first polished theme because it fits night-time utility use.
 
 ## Task List
 
