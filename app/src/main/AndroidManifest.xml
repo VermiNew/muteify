@@ -30,6 +30,10 @@
             android:exported="false" />
 
         <receiver
+            android:name=".schedule.QuietHoursAlarmReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".schedule.ScheduleRescheduleReceiver"
             android:exported="true">
             <intent-filter>

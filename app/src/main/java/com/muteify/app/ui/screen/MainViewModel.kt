@@ -18,6 +18,8 @@ import com.muteify.app.data.repository.ScheduleSlotSettings
 import com.muteify.app.data.repository.SettingsRepository
 import com.muteify.app.engine.AudioController
 import com.muteify.app.monitor.WifiPresenceChecker
+import com.muteify.app.schedule.QuietHoursAlarmReceiver
+import com.muteify.app.schedule.QuietHoursScheduler
 import com.muteify.app.schedule.ScheduleAlarmScheduler
 import com.muteify.app.schedule.SchedulePromptNotifier
 import com.muteify.app.schedule.ScheduleSlot
@@ -47,6 +49,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val ruleHistoryRepository = RuleHistoryRepository(application)
     private val settingsRepository = SettingsRepository(application)
     private val scheduleAlarmScheduler = ScheduleAlarmScheduler(application)
+    private val quietHoursScheduler = QuietHoursScheduler(application)
     private val schedulePromptNotifier = SchedulePromptNotifier(application)
     private val audioController = AudioController(application)
     private val wifiPresenceChecker = WifiPresenceChecker(application)
@@ -99,6 +102,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _automationPauseSummary = MutableStateFlow("Brak aktywnej pauzy")
     val automationPauseSummary: StateFlow<String> = _automationPauseSummary
+
+    private val _quietHoursInput = MutableStateFlow("08:00")
+    val quietHoursInput: StateFlow<String> = _quietHoursInput
+
+    private val _quietHoursSummary = MutableStateFlow("Brak jednorazowego wyciszenia")
+    val quietHoursSummary: StateFlow<String> = _quietHoursSummary
 
     private val _isRunning = MutableStateFlow(false)
     val isRunning: StateFlow<Boolean> = _isRunning
@@ -188,11 +197,57 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             .take(16)
     }
     fun pauseAutomation() {
-        val pausedUntilMillis = _automationPauseInput.value.toPauseUntilMillis() ?: return
+        val pausedUntilMillis = _automationPauseInput.value.toFutureMillis() ?: return
         saveAutomationPause(pausedUntilMillis)
     }
     fun resumeAutomation() {
         saveAutomationPause(null)
+    }
+    fun onQuietHoursInputChanged(value: String) {
+        _quietHoursInput.value = value
+            .filter { it.isDigit() || it == ':' || it == '-' || it == ' ' }
+            .take(16)
+    }
+    fun startQuietHours() {
+        val quietUntilMillis = _quietHoursInput.value.toFutureMillis() ?: return
+        if (!audioController.canChangeRingerMode()) {
+            _quietHoursSummary.value = "Brak dostępu do zmiany trybu dzwonka"
+            return
+        }
+
+        audioController.apply(SoundAction.SILENCE)
+        quietHoursScheduler.schedule(quietUntilMillis)
+        _quietHoursSummary.value = quietUntilMillis.toQuietHoursSummary()
+        refreshSoundStatus()
+        viewModelScope.launch {
+            settingsRepository.saveQuietHoursUntilMillis(quietUntilMillis)
+            ruleHistoryRepository.recordEvent(
+                source = QuietHoursAlarmReceiver.QUIET_HOURS_SOURCE,
+                triggerState = "NOT_APPLICABLE",
+                action = SoundAction.SILENCE.name,
+                policy = QuietHoursAlarmReceiver.QUIET_HOURS_POLICY,
+                outcome = "confirmed",
+                details = "One-off quiet hours started"
+            )
+        }
+    }
+    fun cancelQuietHours() {
+        val quietUntilMillis = currentScheduleSettings.quietHoursUntilMillis
+        quietHoursScheduler.cancel()
+        _quietHoursSummary.value = "Brak jednorazowego wyciszenia"
+        viewModelScope.launch {
+            settingsRepository.saveQuietHoursUntilMillis(null)
+            if (quietUntilMillis.isFutureMillis()) {
+                ruleHistoryRepository.recordEvent(
+                    source = QuietHoursAlarmReceiver.QUIET_HOURS_SOURCE,
+                    triggerState = "NOT_APPLICABLE",
+                    action = SoundAction.UNSILENCE.name,
+                    policy = QuietHoursAlarmReceiver.QUIET_HOURS_POLICY,
+                    outcome = "dismissed",
+                    details = "One-off quiet hours cancelled"
+                )
+            }
+        }
     }
 
     fun refreshPermissionStatus() {
@@ -298,6 +353,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _neverAutoUnmute.value = settings.neverAutoUnmute
                 _automationPauseSummary.value =
                     settings.automationPausedUntilMillis.toAutomationPauseSummary()
+                _quietHoursSummary.value = settings.quietHoursUntilMillis.toQuietHoursSummary()
                 _nextScheduleSummary.value = settings.toNextScheduleSummary()
             }
         }
@@ -397,7 +453,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             ?: 0
     }
 
-    private fun String.toPauseUntilMillis(
+    private fun String.toFutureMillis(
         now: LocalDateTime = LocalDateTime.now()
     ): Long? {
         val text = trim()
@@ -461,6 +517,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (!pausedUntil.isAfter(now)) return "Brak aktywnej pauzy"
 
         return "Pauza do ${pausedUntil.format(PAUSE_LABEL_FORMATTER)}"
+    }
+
+    private fun Long?.toQuietHoursSummary(
+        now: LocalDateTime = LocalDateTime.now()
+    ): String {
+        val quietUntilMillis = this ?: return "Brak jednorazowego wyciszenia"
+        val quietUntil = Instant.ofEpochMilli(quietUntilMillis)
+            .atZone(ZoneId.systemDefault())
+            .toLocalDateTime()
+        if (!quietUntil.isAfter(now)) return "Brak jednorazowego wyciszenia"
+
+        return "Wyciszenie do ${quietUntil.format(PAUSE_LABEL_FORMATTER)}"
     }
 
     private fun Long?.isFutureMillis(): Boolean {
@@ -528,6 +596,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return when (source) {
             "schedule:morning" -> "harmonogram poranny"
             "schedule:evening" -> "harmonogram wieczorny"
+            QuietHoursAlarmReceiver.QUIET_HOURS_SOURCE -> "jednorazowe ciche godziny"
             else -> source
         }
     }

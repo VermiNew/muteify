@@ -23,6 +23,9 @@ class ScheduleRescheduleReceiver : BroadcastReceiver() {
             try {
                 val settings = SettingsRepository(context).getScheduleSettings()
                 ScheduleAlarmScheduler(context).scheduleDaily(settings)
+                settings.quietHoursUntilMillis
+                    ?.takeIf { it > System.currentTimeMillis() }
+                    ?.let { QuietHoursScheduler(context).schedule(it) }
             } finally {
                 pendingResult.finish()
             }

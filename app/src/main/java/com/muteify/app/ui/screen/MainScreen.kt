@@ -51,6 +51,8 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
     val neverAutoUnmute by viewModel.neverAutoUnmute.collectAsState()
     val automationPauseInput by viewModel.automationPauseInput.collectAsState()
     val automationPauseSummary by viewModel.automationPauseSummary.collectAsState()
+    val quietHoursInput by viewModel.quietHoursInput.collectAsState()
+    val quietHoursSummary by viewModel.quietHoursSummary.collectAsState()
     val isRunning by viewModel.isRunning.collectAsState()
     val hasNotificationPolicyAccess by viewModel.hasNotificationPolicyAccess.collectAsState()
     val nextScheduleSummary by viewModel.nextScheduleSummary.collectAsState()
@@ -157,6 +159,15 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
                 neverAutoUnmute = neverAutoUnmute,
                 enabled = !isRunning,
                 onNeverAutoUnmuteChanged = viewModel::onNeverAutoUnmuteChanged
+            )
+
+            QuietHoursCard(
+                input = quietHoursInput,
+                summary = quietHoursSummary,
+                hasNotificationPolicyAccess = hasNotificationPolicyAccess,
+                onInputChanged = viewModel::onQuietHoursInputChanged,
+                onStart = viewModel::startQuietHours,
+                onCancel = viewModel::cancelQuietHours
             )
 
             AutomationPauseCard(
@@ -478,6 +489,70 @@ fun AutomationPauseCard(
                     modifier = Modifier.weight(1f)
                 ) {
                     Text("Wznów")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun QuietHoursCard(
+    input: String,
+    summary: String,
+    hasNotificationPolicyAccess: Boolean,
+    onInputChanged: (String) -> Unit,
+    onStart: () -> Unit,
+    onCancel: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        tonalElevation = 2.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = "Ciche godziny",
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = summary,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            OutlinedTextField(
+                value = input,
+                onValueChange = onInputChanged,
+                label = { Text("Wycisz do") },
+                placeholder = { Text("08:00 lub 2026-05-27 08:00") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+            if (!hasNotificationPolicyAccess) {
+                Text(
+                    text = "Brakuje dostępu do zmiany trybu dzwonka.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = onStart,
+                    modifier = Modifier.weight(1f),
+                    enabled = input.isNotBlank() && hasNotificationPolicyAccess
+                ) {
+                    Text("Wycisz")
+                }
+                OutlinedButton(
+                    onClick = onCancel,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Anuluj")
                 }
             }
         }
@@ -1035,6 +1110,7 @@ private fun sourceLabel(source: String): String {
     return when (source) {
         "schedule:morning" -> "Harmonogram rano"
         "schedule:evening" -> "Harmonogram wieczorem"
+        "quiet:one_off" -> "Ciche godziny"
         else -> source
     }
 }
@@ -1055,6 +1131,7 @@ private fun policyLabel(policy: String): String {
         SchedulePolicy.AUTO_SILENT_AFTER_COUNTDOWN.name -> "Bez monitu po odliczaniu"
         SchedulePolicy.REQUIRE_CONFIRMATION.name -> "Potwierdzenie"
         SchedulePolicy.NOTIFY_ONLY.name -> "Tylko powiadom"
+        "ONE_OFF" -> "Jednorazowo"
         else -> policy
     }
 }
@@ -1084,6 +1161,11 @@ private fun historyDetailsLabel(details: String): String {
         "Pending schedule action was skipped because policy changed" ->
             "Pominięto, bo zasady zmieniły się po utworzeniu monitu."
         "Pending schedule action was cancelled" -> "Użytkownik anulował oczekującą akcję."
+        "One-off quiet hours started" -> "Rozpoczęto jednorazowe ciche godziny."
+        "One-off quiet hours cancelled" -> "Anulowano jednorazowe ciche godziny."
+        "One-off quiet hours ended" -> "Zakończono jednorazowe ciche godziny."
+        "One-off quiet hours could not end because notification policy access is missing" ->
+            "Nie udało się zakończyć, bo brakuje dostępu do trybu Nie przeszkadzać."
         else -> details
     }
 }

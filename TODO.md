@@ -191,7 +191,7 @@ Theme selection should be stored persistently.
 
 - [x] Add a visible safety toggle for never unmuting automatically.
 - [x] Add vacation mode or automation pause until a selected time or date.
-- [ ] Add one-off quiet hours, for example: mute until 08:00.
+- [x] Add one-off quiet hours, for example: mute until 08:00.
 - [x] Add a mute-only option that skips the prompt and mutes after countdown, while still forbidding automatic unmute.
 
 ### Wi-Fi and Home

@@ -20,7 +20,8 @@ data class ScheduleSettings(
     val morning: ScheduleSlotSettings = ScheduleSlotSettings.morningDefault(),
     val evening: ScheduleSlotSettings = ScheduleSlotSettings.eveningDefault(),
     val neverAutoUnmute: Boolean = true,
-    val automationPausedUntilMillis: Long? = null
+    val automationPausedUntilMillis: Long? = null,
+    val quietHoursUntilMillis: Long? = null
 ) {
     val morningTime: String get() = morning.time
     val nightTime: String get() = evening.time
@@ -77,7 +78,8 @@ class SettingsRepository(context: Context) {
                     ?: eveningDefault.countdownSeconds
             ),
             neverAutoUnmute = preferences[NEVER_AUTO_UNMUTE_KEY] ?: true,
-            automationPausedUntilMillis = preferences[AUTOMATION_PAUSED_UNTIL_MILLIS_KEY]
+            automationPausedUntilMillis = preferences[AUTOMATION_PAUSED_UNTIL_MILLIS_KEY],
+            quietHoursUntilMillis = preferences[QUIET_HOURS_UNTIL_MILLIS_KEY]
         )
     }
 
@@ -128,6 +130,16 @@ class SettingsRepository(context: Context) {
         }
     }
 
+    suspend fun saveQuietHoursUntilMillis(value: Long?) {
+        dataStore.edit { preferences ->
+            if (value == null) {
+                preferences.remove(QUIET_HOURS_UNTIL_MILLIS_KEY)
+            } else {
+                preferences[QUIET_HOURS_UNTIL_MILLIS_KEY] = value
+            }
+        }
+    }
+
     private fun String?.toSoundActionOr(default: SoundAction): SoundAction {
         return this?.let { runCatching { SoundAction.valueOf(it) }.getOrNull() } ?: default
     }
@@ -152,5 +164,7 @@ class SettingsRepository(context: Context) {
         val NEVER_AUTO_UNMUTE_KEY = booleanPreferencesKey("never_auto_unmute")
         val AUTOMATION_PAUSED_UNTIL_MILLIS_KEY =
             longPreferencesKey("automation_paused_until_millis")
+        val QUIET_HOURS_UNTIL_MILLIS_KEY =
+            longPreferencesKey("quiet_hours_until_millis")
     }
 }
