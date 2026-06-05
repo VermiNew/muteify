@@ -138,14 +138,11 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
                     hasPostNotificationsPermission = hasPostNotificationsPermission,
                     hasWifiLocationPermission = hasWifiLocationPermission
                 ),
+                soundStatus = soundStatusSummary,
                 nextAction = nextScheduleSummary,
                 currentSsid = currentWifiSsid,
                 currentWifiState = currentWifiState
             )
-
-            SoundStatusCard(summary = soundStatusSummary)
-
-            NextScheduleCard(summary = nextScheduleSummary)
 
             LatestDecisionCard(events = recentHistoryEvents.take(3))
 
@@ -351,6 +348,7 @@ fun AdvancedSettingsSection(
 fun AppStatusCard(
     isRunning: Boolean,
     blockingPermissionCount: Int,
+    soundStatus: String,
     nextAction: String,
     currentSsid: String?,
     currentWifiState: TriggerState
@@ -361,54 +359,96 @@ fun AppStatusCard(
         tonalElevation = 2.dp
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = "Centrum sterowania",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Text(
+                        text = if (isRunning) "Monitoring aktywny" else "Monitoring zatrzymany",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (isRunning) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.error
+                        }
+                    )
+                }
+                Text(
+                    text = triggerStateLabel(currentWifiState.name),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = when (currentWifiState) {
+                        TriggerState.HOME -> MaterialTheme.colorScheme.primary
+                        TriggerState.AWAY -> MaterialTheme.colorScheme.onSurface
+                        TriggerState.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
+                    }
+                )
+            }
+
             Text(
-                text = "Stan aplikacji",
-                style = MaterialTheme.typography.titleMedium
+                text = soundStatus,
+                style = MaterialTheme.typography.headlineSmall
             )
-            StatusLine(
-                label = "Monitoring",
-                value = if (isRunning) "aktywny" else "zatrzymany",
-                isPositive = isRunning
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
+
+            StatusRow(
+                label = "Kontekst",
+                value = currentSsid ?: "Sieć nieznana"
             )
-            StatusLine(
-                label = "Uprawnienia",
-                value = if (blockingPermissionCount == 0) {
-                    "działają"
-                } else {
-                    "braki: $blockingPermissionCount"
-                },
-                isPositive = blockingPermissionCount == 0
-            )
-            StatusLine(
+            StatusRow(
                 label = "Następna akcja",
                 value = nextAction
             )
-            StatusLine(
-                label = "Kontekst",
-                value = "${currentSsid ?: "Sieć nieznana"} · ${triggerStateLabel(currentWifiState.name)}"
+            StatusRow(
+                label = "Uprawnienia",
+                value = if (blockingPermissionCount == 0) {
+                    "Gotowe"
+                } else {
+                    "Braki: $blockingPermissionCount"
+                },
+                isPositive = blockingPermissionCount == 0
             )
         }
     }
 }
 
 @Composable
-private fun StatusLine(
+private fun StatusRow(
     label: String,
     value: String,
     isPositive: Boolean? = null
 ) {
-    Text(
-        text = "$label: $value",
-        style = MaterialTheme.typography.bodySmall,
-        color = when (isPositive) {
-            true -> MaterialTheme.colorScheme.primary
-            false -> MaterialTheme.colorScheme.error
-            null -> MaterialTheme.colorScheme.onSurfaceVariant
-        }
-    )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Top
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(0.35f)
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodySmall,
+            color = when (isPositive) {
+                true -> MaterialTheme.colorScheme.primary
+                false -> MaterialTheme.colorScheme.error
+                null -> MaterialTheme.colorScheme.onSurface
+            },
+            modifier = Modifier.weight(0.65f)
+        )
+    }
 }
 
 @Composable
