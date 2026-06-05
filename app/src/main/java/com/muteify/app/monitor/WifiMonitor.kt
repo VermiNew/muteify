@@ -32,8 +32,11 @@ class WifiMonitor(private val context: Context) {
         }
     }
 
-    fun start(targetSsid: String) {
-        this.targetSsid = targetSsid
+    fun start(targetSsids: Set<String>) {
+        this.targetSsids = targetSsids
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .toSet()
         val request = NetworkRequest.Builder()
             .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
             .build()
@@ -50,12 +53,12 @@ class WifiMonitor(private val context: Context) {
         }
     }
 
-    private var targetSsid: String = ""
+    private var targetSsids: Set<String> = emptySet()
 
     private fun updateState(currentSsid: String?) {
         _state.value = when {
-            targetSsid.isBlank() || currentSsid == null -> TriggerState.UNKNOWN
-            currentSsid == targetSsid -> TriggerState.HOME
+            targetSsids.isEmpty() || currentSsid == null -> TriggerState.UNKNOWN
+            currentSsid in targetSsids -> TriggerState.HOME
             else -> TriggerState.AWAY
         }
     }

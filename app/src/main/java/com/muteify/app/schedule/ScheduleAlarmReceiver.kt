@@ -52,6 +52,7 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
                 settings.neverAutoUnmute,
                 settings.automationPausedUntilMillis,
                 settings.rulePriority,
+                settings.trustedWifiSsids,
                 outcome = "confirmed"
             )
             ACTION_RUN_PENDING -> runAutomaticPendingAction(
@@ -63,7 +64,8 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
                 historyRepository,
                 settings.neverAutoUnmute,
                 settings.automationPausedUntilMillis,
-                settings.rulePriority
+                settings.rulePriority,
+                settings.trustedWifiSsids
             )
             ACTION_DISMISS -> dismissPendingAction(
                 slot,
@@ -125,7 +127,7 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
         }
 
         val policy = slotSettings.effectivePolicy(settings.neverAutoUnmute)
-        val homeState = resolveHomeState(context, slotSettings)
+        val homeState = resolveHomeState(context, slotSettings, settings.trustedWifiSsids)
         if (settings.rulePriority.blocksScheduleAction(slotSettings, homeState)) {
             dismissPendingAction(slot, scheduler, notifier)
             recordScheduleEvent(
@@ -184,6 +186,7 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
         neverAutoUnmute: Boolean,
         automationPausedUntilMillis: Long?,
         rulePriority: RulePriority,
+        trustedWifiSsids: Set<String>,
         outcome: String
     ) {
         dismissPendingAction(slot, scheduler, notifier)
@@ -211,7 +214,7 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
             )
             return
         }
-        val homeState = resolveHomeState(context, settings)
+        val homeState = resolveHomeState(context, settings, trustedWifiSsids)
         if (rulePriority.blocksScheduleAction(settings, homeState)) {
             recordScheduleEvent(
                 historyRepository = historyRepository,
@@ -258,7 +261,8 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
         historyRepository: RuleHistoryRepository,
         neverAutoUnmute: Boolean,
         automationPausedUntilMillis: Long?,
-        rulePriority: RulePriority
+        rulePriority: RulePriority,
+        trustedWifiSsids: Set<String>
     ) {
         if (!settings.effectivePolicy(neverAutoUnmute).runsAfterCountdown()) {
             dismissPendingAction(slot, scheduler, notifier)
@@ -283,6 +287,7 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
             neverAutoUnmute,
             automationPausedUntilMillis = automationPausedUntilMillis,
             rulePriority = rulePriority,
+            trustedWifiSsids = trustedWifiSsids,
             outcome = "auto_executed"
         )
     }
@@ -318,17 +323,24 @@ class ScheduleAlarmReceiver : BroadcastReceiver() {
 
     private suspend fun resolveHomeState(
         context: Context,
-        settings: ScheduleSlotSettings
+        settings: ScheduleSlotSettings,
+        trustedWifiSsids: Set<String>
     ): TriggerState? {
         if (settings.action != SoundAction.UNSILENCE) return null
 
-        val homeRule = AppDatabase.getInstance(context).ruleDao().getAllRules().first()
+        val homeRuleSsid = AppDatabase.getInstance(context).ruleDao().getAllRules().first()
             .firstOrNull { it.isEnabled && it.wifiSsid.isNotBlank() }
-            ?: return TriggerState.UNKNOWN
+            ?.wifiSsid
+        val homeSsids = (trustedWifiSsids + homeRuleSsid.orEmpty())
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .toSet()
+        if (homeSsids.isEmpty()) return TriggerState.UNKNOWN
+
         val currentSsid = WifiPresenceChecker(context).currentSsid()
             ?: return TriggerState.UNKNOWN
 
-        return if (currentSsid == homeRule.wifiSsid) {
+        return if (currentSsid in homeSsids) {
             TriggerState.HOME
         } else {
             TriggerState.AWAY

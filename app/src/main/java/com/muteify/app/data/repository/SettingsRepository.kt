@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.muteify.app.data.model.AppTheme
 import com.muteify.app.data.model.RulePriority
@@ -25,7 +26,8 @@ data class ScheduleSettings(
     val automationPausedUntilMillis: Long? = null,
     val quietHoursUntilMillis: Long? = null,
     val appTheme: AppTheme = AppTheme.OLED,
-    val rulePriority: RulePriority = RulePriority.SCHEDULE_FIRST
+    val rulePriority: RulePriority = RulePriority.SCHEDULE_FIRST,
+    val trustedWifiSsids: Set<String> = emptySet()
 ) {
     val morningTime: String get() = morning.time
     val nightTime: String get() = evening.time
@@ -86,7 +88,8 @@ class SettingsRepository(context: Context) {
             quietHoursUntilMillis = preferences[QUIET_HOURS_UNTIL_MILLIS_KEY],
             appTheme = preferences[APP_THEME_KEY].toAppThemeOr(AppTheme.OLED),
             rulePriority = preferences[RULE_PRIORITY_KEY]
-                .toRulePriorityOr(RulePriority.SCHEDULE_FIRST)
+                .toRulePriorityOr(RulePriority.SCHEDULE_FIRST),
+            trustedWifiSsids = preferences[TRUSTED_WIFI_SSIDS_KEY].orEmpty()
         )
     }
 
@@ -159,6 +162,15 @@ class SettingsRepository(context: Context) {
         }
     }
 
+    suspend fun saveTrustedWifiSsids(value: Set<String>) {
+        dataStore.edit { preferences ->
+            preferences[TRUSTED_WIFI_SSIDS_KEY] = value
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .toSet()
+        }
+    }
+
     private fun String?.toSoundActionOr(default: SoundAction): SoundAction {
         return this?.let { runCatching { SoundAction.valueOf(it) }.getOrNull() } ?: default
     }
@@ -195,5 +207,6 @@ class SettingsRepository(context: Context) {
             longPreferencesKey("quiet_hours_until_millis")
         val APP_THEME_KEY = stringPreferencesKey("app_theme")
         val RULE_PRIORITY_KEY = stringPreferencesKey("rule_priority")
+        val TRUSTED_WIFI_SSIDS_KEY = stringSetPreferencesKey("trusted_wifi_ssids")
     }
 }

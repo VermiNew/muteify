@@ -23,6 +23,7 @@ class MuteifyService : Service() {
         const val PROMPT_CHANNEL_ID = "muteify_prompt"
         const val PROMPT_NOTIFICATION_ID = 1
         const val EXTRA_SSID = "extra_ssid"
+        const val EXTRA_TRUSTED_SSIDS = "extra_trusted_ssids"
         const val EXTRA_ACTION_ENTER = "extra_action_enter"
         const val EXTRA_ACTION_LEAVE = "extra_action_leave"
         const val EXTRA_NEVER_AUTO_UNMUTE = "extra_never_auto_unmute"
@@ -77,7 +78,18 @@ class MuteifyService : Service() {
                 val leave = intent.getStringExtra(EXTRA_ACTION_LEAVE)
                     ?.let { SoundAction.valueOf(it) } ?: SoundAction.SILENCE
                 val neverAutoUnmute = intent.getBooleanExtra(EXTRA_NEVER_AUTO_UNMUTE, true)
-                ruleEngine.start(ssid, enter, leave, neverAutoUnmute, intent.pausedUntilMillisExtra())
+                val trustedSsids = intent.getStringArrayExtra(EXTRA_TRUSTED_SSIDS)
+                    ?.map { it.trim() }
+                    ?.filter { it.isNotBlank() }
+                    ?.toSet()
+                    .orEmpty() + ssid
+                ruleEngine.start(
+                    trustedSsids,
+                    enter,
+                    leave,
+                    neverAutoUnmute,
+                    intent.pausedUntilMillisExtra()
+                )
             }
         }
         return START_STICKY

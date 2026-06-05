@@ -64,6 +64,11 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
     val recentHistoryEvents by viewModel.recentHistoryEvents.collectAsState()
     val currentWifiSsid by viewModel.currentWifiSsid.collectAsState()
     val currentWifiState by viewModel.currentWifiState.collectAsState()
+    val trustedWifiSsids by viewModel.trustedWifiSsids.collectAsState()
+    val effectiveTrustedWifiSsids = (trustedWifiSsids + ssid)
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .toSet()
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var hasPostNotificationsPermission by remember {
@@ -185,6 +190,7 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
             WifiStatusCard(
                 currentSsid = currentWifiSsid,
                 state = currentWifiState,
+                trustedSsids = effectiveTrustedWifiSsids,
                 warning = wifiSsidWarning(
                     currentSsid = currentWifiSsid,
                     hasLocationPermission = hasWifiLocationPermission,
@@ -192,7 +198,8 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
                     isWifiEnabled = isWifiEnabled
                 ),
                 enabled = !isRunning,
-                onSetCurrentAsHome = viewModel::setCurrentWifiAsHome
+                onSetCurrentAsHome = viewModel::setCurrentWifiAsHome,
+                onRemoveTrustedSsid = viewModel::removeTrustedWifiSsid
             )
 
             AdvancedSettingsSection(
@@ -294,7 +301,7 @@ fun MainScreen(viewModel: MainViewModel = viewModel()) {
         Button(
             onClick = viewModel::toggleService,
             modifier = Modifier.fillMaxWidth(),
-            enabled = isRunning || ssid.isNotBlank()
+            enabled = isRunning || effectiveTrustedWifiSsids.isNotEmpty()
         ) {
             Text(if (isRunning) "Zatrzymaj" else "Zapisz i włącz")
         }
@@ -408,9 +415,11 @@ private fun StatusLine(
 fun WifiStatusCard(
     currentSsid: String?,
     state: TriggerState,
+    trustedSsids: Set<String>,
     warning: String?,
     enabled: Boolean,
-    onSetCurrentAsHome: () -> Unit
+    onSetCurrentAsHome: () -> Unit,
+    onRemoveTrustedSsid: (String) -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -438,6 +447,37 @@ fun WifiStatusCard(
                     TriggerState.UNKNOWN -> MaterialTheme.colorScheme.onSurfaceVariant
                 }
             )
+            Text(
+                text = "Zaufane sieci",
+                style = MaterialTheme.typography.titleSmall
+            )
+            if (trustedSsids.isEmpty()) {
+                Text(
+                    text = "Brak. Ustaw obecną sieć jako Dom.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                trustedSsids.sorted().forEach { ssid ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = ssid,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(
+                            onClick = { onRemoveTrustedSsid(ssid) },
+                            enabled = enabled
+                        ) {
+                            Text("Usuń")
+                        }
+                    }
+                }
+            }
             if (warning != null) {
                 Text(
                     text = warning,

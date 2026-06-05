@@ -138,6 +138,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _currentWifiState = MutableStateFlow(TriggerState.UNKNOWN)
     val currentWifiState: StateFlow<TriggerState> = _currentWifiState
 
+    private val _trustedWifiSsids = MutableStateFlow<Set<String>>(emptySet())
+    val trustedWifiSsids: StateFlow<Set<String>> = _trustedWifiSsids
+
     init {
         refreshPermissionStatus()
         refreshSoundStatus()
@@ -281,16 +284,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun refreshWifiStatus() {
         val currentSsid = wifiPresenceChecker.currentSsid()
         _currentWifiSsid.value = currentSsid
+        val trustedSsids = trustedWifiSsidsForEngine()
         _currentWifiState.value = when {
-            currentSsid == null || _ssid.value.isBlank() -> TriggerState.UNKNOWN
-            currentSsid == _ssid.value -> TriggerState.HOME
+            currentSsid == null || trustedSsids.isEmpty() -> TriggerState.UNKNOWN
+            currentSsid in trustedSsids -> TriggerState.HOME
             else -> TriggerState.AWAY
         }
     }
 
     fun setCurrentWifiAsHome() {
         val currentSsid = _currentWifiSsid.value ?: return
-        _ssid.value = currentSsid
+        if (_ssid.value.isBlank()) {
+            _ssid.value = currentSsid
+        }
+        saveTrustedWifiSsids(_trustedWifiSsids.value + currentSsid)
+        refreshWifiStatus()
+    }
+
+    fun removeTrustedWifiSsid(ssid: String) {
+        if (_ssid.value.trim() == ssid.trim()) {
+            _ssid.value = ""
+            saveHomeRule()
+        }
+        saveTrustedWifiSsids(_trustedWifiSsids.value - ssid)
         refreshWifiStatus()
     }
 
@@ -310,11 +326,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _isRunning.value = false
             refreshSoundStatus()
         } else {
-            if (_ssid.value.isBlank()) return
+            val trustedSsids = trustedWifiSsidsForEngine()
+            if (trustedSsids.isEmpty()) return
             saveHomeRule()
             scheduleAlarmScheduler.scheduleDaily(currentScheduleSettings)
             val intent = Intent(context, MuteifyService::class.java).apply {
                 putExtra(MuteifyService.EXTRA_SSID, _ssid.value)
+                putExtra(MuteifyService.EXTRA_TRUSTED_SSIDS, trustedSsids.toTypedArray())
                 putExtra(MuteifyService.EXTRA_ACTION_ENTER, _actionEnter.value.name)
                 putExtra(MuteifyService.EXTRA_ACTION_LEAVE, _actionLeave.value.name)
                 putExtra(MuteifyService.EXTRA_NEVER_AUTO_UNMUTE, _neverAutoUnmute.value)
@@ -376,7 +394,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _quietHoursSummary.value = settings.quietHoursUntilMillis.toQuietHoursSummary()
                 _appTheme.value = settings.appTheme
                 _rulePriority.value = settings.rulePriority
+                _trustedWifiSsids.value = settings.trustedWifiSsids
                 _nextScheduleSummary.value = settings.toNextScheduleSummary()
+                refreshWifiStatus()
             }
         }
     }
@@ -428,6 +448,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
         viewModelScope.launch {
             settingsRepository.saveEveningScheduleSettings(settings)
+        }
+    }
+
+    private fun saveTrustedWifiSsids(value: Set<String>) {
+        val normalized = value
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .toSet()
+        _trustedWifiSsids.value = normalized
+        viewModelScope.launch {
+            settingsRepository.saveTrustedWifiSsids(normalized)
         }
     }
 
@@ -555,6 +586,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun Long?.isFutureMillis(): Boolean {
         return this != null && this > System.currentTimeMillis()
+    }
+
+    private fun trustedWifiSsidsForEngine(): Set<String> {
+        return (_trustedWifiSsids.value + _ssid.value)
+            .map { it.trim() }
+            .filter { it.isNotBlank() }
+            .toSet()
     }
 
     private fun ScheduleSlotSettings.actionSummary(): String {
